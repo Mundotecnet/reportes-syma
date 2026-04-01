@@ -8,28 +8,47 @@
 ## PROTOCOLO OBLIGATORIO ANTES DE CUALQUIER CAMBIO
 
 ```
-1. REALIZAR BACKUP LOCAL
-   cp -r /Users/lroot/Downloads/reportes-syma \
-         /Users/lroot/Downloads/reportes-syma-backup-$(date +%Y%m%d-%H%M%S)
+1. MODIFICAR archivos locales
 
-2. MODIFICAR archivos locales
+2. COMMIT con mensaje descriptivo
+   git add <archivos modificados>
+   git commit -m "descripción del cambio"
 
-3. DEPLOY AL SERVIDOR
-   sshpass -p '87060002' scp <archivo> lroot@192.168.88.250:/home/lroot/reportes-syma/<ruta>
-
-4. REINICIAR SERVICIO
+3. DEPLOY AL SERVIDOR (push + reinicio)
+   GIT_SSH_COMMAND="sshpass -p '87060002' ssh -o StrictHostKeyChecking=no" \
+     git push servidor main
    sshpass -p '87060002' ssh -tt lroot@192.168.88.250 \
      "echo '87060002' | sudo -S systemctl restart reportes.service && \
       sleep 2 && systemctl is-active reportes.service"
 
-5. VERIFICAR respuesta "active"
+4. VERIFICAR respuesta "active"
 
-6. DOCUMENTAR en la sección "Bitácora de Cambios":
+5. DOCUMENTAR en la sección "Bitácora de Cambios":
    - Número de cambio correlativo
    - Solicitud del usuario
    - Problema / causa raíz
    - Solución aplicada
    - Archivos modificados
+
+6. AL CERRAR UN BLOQUE DE MEJORAS — crear tag de versión
+   git tag -a v1.X.0 -m "descripción del release"
+   GIT_SSH_COMMAND="sshpass -p '87060002' ssh -o StrictHostKeyChecking=no" \
+     git push servidor main --tags
+```
+
+### Rollback a versión anterior
+```
+# Ver versiones disponibles
+git tag
+
+# Revertir localmente
+git checkout v1.0.0
+
+# Revertir en servidor
+sshpass -p '87060002' ssh lroot@192.168.88.250 \
+  "cd /home/lroot/reportes-syma && git checkout v1.0.0"
+sshpass -p '87060002' ssh -tt lroot@192.168.88.250 \
+  "echo '87060002' | sudo -S systemctl restart reportes.service"
 ```
 
 ---
