@@ -1,0 +1,113 @@
+# INSTRUCCIONES DE INSTALACIÓN — REPORTES SYMA
+==========================================
+
+## REQUISITOS
+- Python 3.10 o superior
+- ODBC Driver 17 for SQL Server instalado en el servidor
+- Acceso a la red donde está SQL Server (192.168.10.15)
+
+---
+
+## PASO 1 — Instalar Python
+Descargá Python desde https://python.org/downloads
+Marcá "Add Python to PATH" durante la instalación.
+
+---
+
+## PASO 2 — Instalar ODBC Driver 17
+Descargá desde:
+https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
+Instalá "ODBC Driver 17 for SQL Server"
+
+---
+
+## PASO 3 — Copiar el proyecto
+Copiá la carpeta "reportes-syma" a tu servidor, por ejemplo:
+  C:\reportes-syma\
+
+---
+
+## PASO 4 — Configurar la conexión
+Abrí el archivo config.py y editá la clave del usuario:
+
+  DB_CONFIG = {
+      "server":   r"192.168.10.15\SQLEXPRESS",
+      "database": "Syma",
+      "user":     "reportes_user",
+      "password": "TU_CLAVE_REAL_AQUI",   <-- cambiá esto
+  }
+
+También podés cambiar:
+  EMPRESA_NOMBRE = "Nombre de tu empresa"
+
+---
+
+## PASO 5 — Instalar dependencias
+Abrí CMD o PowerShell en la carpeta del proyecto:
+
+  cd C:\reportes-syma
+  pip install -r requirements.txt
+
+---
+
+## PASO 6 — Ejecutar la aplicación
+  cd C:\reportes-syma
+  python main.py
+
+Vas a ver:
+  INFO: Uvicorn running on http://0.0.0.0:8000
+
+---
+
+## PASO 7 — Abrir en el navegador
+Desde cualquier PC en la red:
+  http://192.168.10.XX:8000
+  (reemplazá XX por la IP del servidor donde instalaste esto)
+
+Desde el mismo servidor:
+  http://localhost:8000
+
+---
+
+## EJECUTAR AUTOMÁTICAMENTE AL INICIAR WINDOWS
+Para que arranque solo con Windows, creá un archivo iniciar.bat:
+
+  @echo off
+  cd C:\reportes-syma
+  python main.py
+
+Luego poné ese .bat en:
+  C:\Users\TU_USUARIO\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
+
+---
+
+## SOLUCIÓN DE PROBLEMAS
+
+Error "No module named pyodbc":
+  pip install pyodbc
+
+Error de conexión a SQL Server:
+  - Verificá que SQL Server tenga TCP/IP habilitado
+  - Verificá que el puerto 1433 esté abierto
+  - Probá la conexión desde DBeaver con el mismo usuario
+
+Error "ODBC Driver 17 not found":
+  Instalá el driver desde el link del Paso 2
+
+---
+
+## ARCHIVOS DEL PROYECTO
+
+  config.py              ← configuración (IP, usuario, clave)
+  db.py                  ← conexión a SQL Server
+  main.py                ← servidor web principal
+  requirements.txt       ← dependencias Python
+  reportes/
+    ventas.py            ← SQL de ventas
+    pagos.py             ← SQL de pagos de clientes
+    compras.py           ← SQL de compras
+  exports/
+    excel.py             ← generador Excel
+    pdf.py               ← generador PDF
+  templates/
+    index.html           ← interfaz web

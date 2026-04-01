@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iniciar sesión — MUNDOTEC</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:system-ui,sans-serif;
+  background:#f4f6fb;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  color:#1a1a2e;
+}
+
+.login-card{
+  background:#fff;
+  border-radius:16px;
+  border:1px solid #dde3f0;
+  padding:40px 44px 36px;
+  width:100%;
+  max-width:380px;
+  box-shadow:0 4px 24px rgba(30,78,140,.10);
+}
+
+.logo{
+  text-align:center;
+  margin-bottom:28px;
+}
+.logo-icon{
+  width:56px;height:56px;
+  background:#1E4E8C;
+  border-radius:14px;
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:12px;
+}
+.logo-icon svg{width:30px;height:30px;fill:#fff}
+.logo h1{font-size:20px;font-weight:700;color:#1a1a2e;letter-spacing:-.3px}
+.logo p{font-size:12px;color:#888;margin-top:4px}
+
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:6px}
+.field input{
+  width:100%;
+  padding:10px 13px;
+  font-size:14px;
+  border:1px solid #dde3f0;
+  border-radius:9px;
+  background:#fafbff;
+  color:#1a1a2e;
+  transition:border-color .15s;
+}
+.field input:focus{outline:none;border-color:#1E4E8C;background:#fff}
+
+.btn-login{
+  width:100%;
+  padding:11px;
+  font-size:14px;
+  font-weight:600;
+  border:none;
+  border-radius:9px;
+  background:#1E4E8C;
+  color:#fff;
+  cursor:pointer;
+  margin-top:8px;
+  transition:background .15s;
+}
+.btn-login:hover{background:#163d73}
+.btn-login:active{background:#102e58}
+
+.error{
+  background:#fdecea;
+  color:#c0392b;
+  border:1px solid #f5c6c2;
+  border-radius:8px;
+  padding:10px 13px;
+  font-size:13px;
+  margin-bottom:16px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.footer{
+  margin-top:18px;
+  text-align:center;
+  font-size:11px;
+  color:#bbb;
+}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+
+  <div class="logo">
+    <div class="logo-icon">
+      <!-- ícono de candado -->
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0
+                 2-2V10a2 2 0 0 0-2-2ZM9 6a3 3 0 0 1 6 0v2H9V6Zm4 10.73V18h-2v-1.27a2 2 0
+                 1 1 2 0Z"/>
+      </svg>
+    </div>
+    <h1>MUNDOTEC, S.A.</h1>
+    <p>Dashboard de Reportes — Ingresá tus credenciales</p>
+  </div>
+
+  <form id="form-login" onsubmit="doLogin(event)">
+    <div class="field">
+      <label for="usuario">Usuario</label>
+      <input type="text" id="usuario" name="usuario" autocomplete="username"
+             placeholder="Ingresá tu usuario" autofocus>
+    </div>
+    <div class="field">
+      <label for="clave">Contraseña</label>
+      <input type="password" id="clave" name="clave" autocomplete="current-password"
+             placeholder="••••••••••">
+    </div>
+    <div id="error-box" class="error" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#c0392b">
+        <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm1 15h-2v-2h2v2Zm0-4h-2V7h2v6Z"/>
+      </svg>
+      <span id="error-msg"></span>
+    </div>
+    <button type="submit" class="btn-login" id="btn-ingresar">Ingresar</button>
+  </form>
+
+  <script>
+  async function doLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-ingresar');
+    const errBox = document.getElementById('error-box');
+    const errMsg = document.getElementById('error-msg');
+    const usuario = document.getElementById('usuario').value.trim();
+    const clave   = document.getElementById('clave').value;
+
+    if (!usuario || !clave) {
+      errMsg.textContent = 'Ingresá usuario y contraseña.';
+      errBox.style.display = 'flex';
+      return;
+    }
+
+    btn.textContent = 'Verificando...';
+    btn.disabled = true;
+    errBox.style.display = 'none';
+
+    try {
+      const res  = await fetch('/login', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({ usuario, clave }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        window.location.href = '/';
+      } else {
+        errMsg.textContent = data.error || 'Usuario o contraseña incorrectos.';
+        errBox.style.display = 'flex';
+        btn.textContent = 'Ingresar';
+        btn.disabled = false;
+        document.getElementById('clave').value = '';
+        document.getElementById('clave').focus();
+      }
+    } catch {
+      errMsg.textContent = 'Error de conexión. Intentá de nuevo.';
+      errBox.style.display = 'flex';
+      btn.textContent = 'Ingresar';
+      btn.disabled = false;
+    }
+  }
+  </script>
+
+  <div class="footer">MUNDOTEC, S.A. &nbsp;·&nbsp; Reportes internos</div>
+</div>
+
+</body>
+</html>
