@@ -92,6 +92,59 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
   </div>
   <div class="nav-subtabs" id="nav-subtabs"></div>
 
+  <!-- ══════════ DASHBOARD ══════════ -->
+  <div id="tab-dashboard" class="panel">
+
+    <!-- Filtros período -->
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:20px">
+      <div class="fi">
+        <label>Fecha inicio</label>
+        <input type="date" id="db-fi">
+      </div>
+      <div class="fi">
+        <label>Fecha fin</label>
+        <input type="date" id="db-ff">
+      </div>
+      <div style="display:flex;gap:6px;align-self:flex-end">
+        <button onclick="dashPeriodo('mes')"      style="padding:6px 12px;border:1px solid #1E4E8C;border-radius:6px;background:#fff;color:#1E4E8C;cursor:pointer;font-size:12px">Este mes</button>
+        <button onclick="dashPeriodo('anterior')" style="padding:6px 12px;border:1px solid #1E4E8C;border-radius:6px;background:#fff;color:#1E4E8C;cursor:pointer;font-size:12px">Mes anterior</button>
+        <button onclick="dashPeriodo('anio')"     style="padding:6px 12px;border:1px solid #1E4E8C;border-radius:6px;background:#fff;color:#1E4E8C;cursor:pointer;font-size:12px">Este año</button>
+      </div>
+      <button class="btn-run" onclick="cargarDashboard()">Generar</button>
+    </div>
+
+    <div id="db-contenido" style="display:none">
+
+      <!-- VENTAS -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:#1E4E8C;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1E4E8C;padding-bottom:4px;margin-bottom:10px">💰 Ventas del período</div>
+        <div class="metrics" id="db-ventas"></div>
+      </div>
+
+      <!-- COMPRAS -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:#6d4c41;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #6d4c41;padding-bottom:4px;margin-bottom:10px">🛒 Compras del período</div>
+        <div class="metrics" id="db-compras"></div>
+      </div>
+
+      <!-- BIENES Y SERVICIOS -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:#2e7d32;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #2e7d32;padding-bottom:4px;margin-bottom:10px">📦 Ventas por tipo</div>
+        <div class="metrics" id="db-tipos"></div>
+      </div>
+
+      <!-- CRÉDITO Y SALDOS -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:#6a1b9a;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #6a1b9a;padding-bottom:4px;margin-bottom:10px">📋 Crédito y Saldos</div>
+        <div class="metrics" id="db-credito"></div>
+      </div>
+
+    </div>
+    <div id="db-placeholder" style="color:#aaa;text-align:center;padding:60px 0;font-size:14px">
+      Seleccioná el período y presioná <strong>Generar</strong>
+    </div>
+  </div>
+
   <!-- ══════════ VENTAS ══════════ -->
   <div id="tab-ventas" class="panel active">
     <div class="fcard">
@@ -1308,8 +1361,8 @@ const crc = v => '₡' + (parseFloat(v)||0).toLocaleString('es-CR',{minimumFract
 const hoy = new Date();
 const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
 const hoyStr = hoy.toISOString().split('T')[0];
-['v-fi','p-fi','c-fi','pr-fi','ta-fi','ha-fi','st3-fi'].forEach(id => document.getElementById(id).value = primerDia);
-['v-ff','p-ff','c-ff','pr-ff','ta-ff','ha-ff','st3-ff'].forEach(id => document.getElementById(id).value = hoyStr);
+['db-fi','v-fi','p-fi','c-fi','pr-fi','ta-fi','ha-fi','st3-fi'].forEach(id => document.getElementById(id).value = primerDia);
+['db-ff','v-ff','p-ff','c-ff','pr-ff','ta-ff','ha-ff','st3-ff'].forEach(id => document.getElementById(id).value = hoyStr);
 
 
 // Verificar conexión y cargar usuario de sesión
@@ -1320,7 +1373,7 @@ fetch('/api/ping').then(r=>r.json()).then(d=>{
 fetch('/api/me').then(r=>r.json()).then(d=>{
   if(d.usuario) document.getElementById('usuario-label').textContent = '👤 ' + d.usuario;
   initNav(d.modulos || [
-    'ventas','pagos','compras','productos','cxc','inventario',
+    'dashboard','ventas','pagos','compras','productos','cxc','inventario',
     'inv-ajustes','hist-ajustes','cv','taller','ingreso-taller',
     'agenda-taller','st003','orden-compra','cxp','admin'
   ]);
@@ -1372,6 +1425,7 @@ fetch('/api/proveedores').then(r=>r.json()).then(data=>{
 
 // ── Navegación agrupada ───────────────────────────────────────
 const GRUPOS_NAV = {
+  dashboard:  { label:'📊 Dashboard',  tabs:['dashboard'] },
   ventas:     { label:'💰 Ventas',     tabs:['ventas','pagos','productos','cxc','cv'] },
   compras:    { label:'🛒 Compras',    tabs:['compras','cxp','cal-pagos'] },
   inventario: { label:'📦 Inventario', tabs:['inv-ajustes','hist-ajustes'] },
@@ -1379,6 +1433,7 @@ const GRUPOS_NAV = {
   admin:      { label:'⚙ Admin',       tabs:['admin'] },
 };
 const TAB_LABELS = {
+  dashboard:'Dashboard',
   ventas:'Ventas', pagos:'Pago de Clientes', compras:'Compras',
   productos:'Productos Vendidos', cxc:'Cuentas x Cobrar', cv:'Compra-Venta',
   inventario:'Inventario', 'inv-ajustes':'Inv. Ajustes', 'hist-ajustes':'Historial Ajustes',
@@ -3532,6 +3587,100 @@ function toggleGraficoVentas() {
 // ══════════════════════════════════════════════════════
 //  TALLER
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  DASHBOARD GENERAL
+// ══════════════════════════════════════════════════════
+function dashPeriodo(tipo) {
+  const hoy   = new Date();
+  let fi, ff;
+  if (tipo === 'mes') {
+    fi = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    ff = hoy;
+  } else if (tipo === 'anterior') {
+    fi = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+    ff = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+  } else if (tipo === 'anio') {
+    fi = new Date(hoy.getFullYear(), 0, 1);
+    ff = hoy;
+  }
+  const fmt = d => d.toISOString().split('T')[0];
+  document.getElementById('db-fi').value = fmt(fi);
+  document.getElementById('db-ff').value = fmt(ff);
+  cargarDashboard();
+}
+
+async function cargarDashboard() {
+  const fi = document.getElementById('db-fi').value;
+  const ff = document.getElementById('db-ff').value;
+  if (!fi || !ff) { alert('Seleccioná el rango de fechas.'); return; }
+
+  document.getElementById('db-placeholder').style.display = 'none';
+  document.getElementById('db-contenido').style.display   = 'none';
+  ['db-ventas','db-compras','db-tipos','db-credito'].forEach(id => {
+    document.getElementById(id).innerHTML =
+      '<div class="metric-card"><div class="metric-val" style="color:#aaa">...</div></div>';
+  });
+  document.getElementById('db-contenido').style.display = 'block';
+
+  const res = await fetch(`/api/dashboard?fecha_ini=${fi}&fecha_fin=${ff}`).then(r => r.json());
+
+  // ── Ventas ────────────────────────────────────────────────────────────────
+  document.getElementById('db-ventas').innerHTML = `
+    <div class="metric-card" style="border-top:3px solid #1E4E8C">
+      <div class="metric-val" style="color:#1E4E8C;font-size:1.5em">${crc(res.ventas_total)}</div>
+      <div class="metric-lbl">Total ventas <small style="color:#aaa">(${res.docs_total} docs)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #27ae60">
+      <div class="metric-val" style="color:#27ae60">${crc(res.ventas_contado)}</div>
+      <div class="metric-lbl">Contado <small style="color:#aaa">(${res.docs_contado} docs)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #e67e22">
+      <div class="metric-val" style="color:#e67e22">${crc(res.ventas_credito)}</div>
+      <div class="metric-lbl">Crédito <small style="color:#aaa">(${res.docs_credito} docs)</small></div>
+    </div>`;
+
+  // ── Compras ───────────────────────────────────────────────────────────────
+  document.getElementById('db-compras').innerHTML = `
+    <div class="metric-card" style="border-top:3px solid #6d4c41">
+      <div class="metric-val" style="color:#6d4c41">${crc(res.compras_crc)}</div>
+      <div class="metric-lbl">Compras colones <small style="color:#aaa">(${res.docs_crc} docs)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #795548">
+      <div class="metric-val" style="color:#795548">$${(res.compras_usd||0).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="metric-lbl">Compras dólares <small style="color:#aaa">(${res.docs_usd} docs)</small></div>
+    </div>`;
+
+  // ── Bienes y Servicios ────────────────────────────────────────────────────
+  const totalTipos = (res.total_bienes||0) + (res.total_servicios||0);
+  const pctBienes   = totalTipos > 0 ? Math.round((res.total_bienes   / totalTipos) * 100) : 0;
+  const pctServicios= totalTipos > 0 ? Math.round((res.total_servicios/ totalTipos) * 100) : 0;
+  document.getElementById('db-tipos').innerHTML = `
+    <div class="metric-card" style="border-top:3px solid #2e7d32">
+      <div class="metric-val" style="color:#2e7d32">${crc(res.total_bienes)}</div>
+      <div class="metric-lbl">Bienes <small style="color:#aaa">(${pctBienes}%)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #1565c0">
+      <div class="metric-val" style="color:#1565c0">${crc(res.total_servicios)}</div>
+      <div class="metric-lbl">Servicios <small style="color:#aaa">(${pctServicios}%)</small></div>
+    </div>`;
+
+  // ── Crédito y Saldos ──────────────────────────────────────────────────────
+  document.getElementById('db-credito').innerHTML = `
+    <div class="metric-card" style="border-top:3px solid #6a1b9a">
+      <div class="metric-val" style="color:#6a1b9a">${crc(res.recuperacion)}</div>
+      <div class="metric-lbl">Recuperación crédito <small style="color:#aaa">(${res.docs_pagos} pagos)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #c62828">
+      <div class="metric-val" style="color:#c62828">${crc(res.saldo_cxc)}</div>
+      <div class="metric-lbl">Saldo CXC <small style="color:#aaa">(${res.facturas_pendientes} facturas)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #e53935">
+      <div class="metric-val" style="color:#e53935">${crc(res.saldo_cxp)}</div>
+      <div class="metric-lbl">Saldo CXP <small style="color:#aaa">(${res.facturas_cxp} facturas)</small></div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════
 let _tallerData = [];
 
 async function cargarTaller() {
@@ -4698,14 +4847,16 @@ function cpToggleDocPanel() {
 
 // ── Admin ────────────────────────────────────────────────────
 const MODULO_LABELS = {
+  dashboard:'Dashboard',
   ventas:'Ventas', pagos:'Pago de Clientes', compras:'Compras',
   productos:'Productos Vendidos', cxc:'Cuentas x Cobrar', cv:'Compra-Venta',
   'inv-ajustes':'Inv. Ajustes', 'hist-ajustes':'Historial Ajustes',
+  dashboard:'Dashboard',
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
   'cal-pagos':'Calendario Pagos', admin:'Admin'
 };
-const MODULOS_ORDEN = ['ventas','pagos','compras','productos','cxc','cv',
+const MODULOS_ORDEN = ['dashboard','ventas','pagos','compras','productos','cxc','cv',
   'inv-ajustes','hist-ajustes','taller','st003','ingreso-taller',
   'agenda-taller','orden-compra','cxp','cal-pagos','admin'];
 

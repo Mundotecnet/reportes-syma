@@ -1,6 +1,7 @@
 from db import ejecutar_query, get_connection
 
 MODULOS_TODOS = [
+    'dashboard',
     'ventas', 'pagos', 'compras', 'productos', 'cxc',
     'inventario', 'inv-ajustes', 'hist-ajustes', 'cv',
     'taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra',
