@@ -2,7 +2,9 @@ from collections import defaultdict
 from db import ejecutar_query
 
 
-def get_cxp(busqueda: str = "") -> list:
+ITSERVICE_ID = 178  # IT SERVICE SOCIEDAD ANONIMA
+
+def get_cxp(busqueda: str = "", excluir_itservice: bool = False) -> list:
     """
     Cuentas por Pagar: proveedores con facturas pendientes en ETransacP.
     ID_CONCEPTO='01' = facturas de compra, STATUS='A', SALDO_DOC>0 = pendientes.
@@ -12,12 +14,14 @@ def get_cxp(busqueda: str = "") -> list:
 
     if busqueda:
         like = f"%{busqueda}%"
-        where_extra = (
+        where_extra += (
             " AND (CAST(p.PROVEEDOR_ID AS varchar(20)) LIKE ?"
             " OR p.NOMBRE LIKE ?"
             " OR p.CEDULA LIKE ?)"
         )
         params.extend([like, like, like])
+    if excluir_itservice:
+        where_extra += f" AND p.PROVEEDOR_ID <> {ITSERVICE_ID}"
 
     sql = f"""
         SELECT

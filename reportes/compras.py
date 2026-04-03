@@ -1,8 +1,10 @@
 from db import ejecutar_query
 
+ITSERVICE_ID = 178  # IT SERVICE SOCIEDAD ANONIMA
+
 def get_compras(fecha_ini: str, fecha_fin: str,
                 proveedor_id: str = "", estado: str = "",
-                moneda: str = ""):
+                moneda: str = "", excluir_itservice: bool = False):
     filtros = ["CAST(c.FECHA AS date) BETWEEN ? AND ?"]
     params  = [fecha_ini, fecha_fin]
 
@@ -15,6 +17,8 @@ def get_compras(fecha_ini: str, fecha_fin: str,
     if moneda:
         filtros.append("c.ID_MONEDA = ?")
         params.append(moneda)
+    if excluir_itservice:
+        filtros.append(f"c.PROVEEDOR_ID <> {ITSERVICE_ID}")
 
     where = " AND ".join(filtros)
 

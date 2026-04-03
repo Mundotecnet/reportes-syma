@@ -327,13 +327,14 @@ async def pagos_pdf(
 # ─────────────────────────────────────────
 @app.get("/api/compras")
 async def compras(
-    fecha_ini:    str = Query(...),
-    fecha_fin:    str = Query(...),
-    proveedor_id: str = Query(""),
-    estado:       str = Query(""),
-    moneda:       str = Query(""),
+    fecha_ini:         str  = Query(...),
+    fecha_fin:         str  = Query(...),
+    proveedor_id:      str  = Query(""),
+    estado:            str  = Query(""),
+    moneda:            str  = Query(""),
+    excluir_itservice: bool = Query(False),
 ):
-    datos = get_compras(fecha_ini, fecha_fin, proveedor_id, estado, moneda)
+    datos = get_compras(fecha_ini, fecha_fin, proveedor_id, estado, moneda, excluir_itservice)
     return {"datos": datos, "count": len(datos)}
 
 @app.get("/api/compras/lineas")
@@ -436,8 +437,8 @@ async def productos_pdf(
 # REPORTE CUENTAS X COBRAR
 # ─────────────────────────────────────────
 @app.get("/api/cxp")
-async def cxp(busqueda: str = Query("")):
-    datos = get_cxp(busqueda)
+async def cxp(busqueda: str = Query(""), excluir_itservice: bool = Query(False)):
+    datos = get_cxp(busqueda, excluir_itservice)
     total_saldo = sum(r["saldo"] for r in datos)
     return {"datos": datos, "count": len(datos), "total_saldo": total_saldo}
 
