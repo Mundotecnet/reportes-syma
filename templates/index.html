@@ -111,6 +111,10 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
         <button onclick="dashPeriodo('anio')"     style="padding:6px 12px;border:1px solid #1E4E8C;border-radius:6px;background:#fff;color:#1E4E8C;cursor:pointer;font-size:12px">Este año</button>
       </div>
       <button class="btn-run" onclick="cargarDashboard()">Generar</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;align-self:flex-end;padding-bottom:6px">
+        <input type="checkbox" id="db-excluir-its" style="accent-color:#c0392b" onchange="cargarDashboard()">
+        <span style="color:#c0392b;font-weight:600">Sin IT SERVICE</span>
+      </label>
     </div>
 
     <div id="db-contenido" style="display:none">
@@ -3633,7 +3637,8 @@ async function cargarDashboard() {
   });
   document.getElementById('db-contenido').style.display = 'block';
 
-  const res = await fetch(`/api/dashboard?fecha_ini=${fi}&fecha_fin=${ff}`).then(r => r.json());
+  const exclIts = document.getElementById('db-excluir-its').checked;
+  const res = await fetch(`/api/dashboard?fecha_ini=${fi}&fecha_fin=${ff}&excluir_itservice=${exclIts}`).then(r => r.json());
 
   // ── Ventas ────────────────────────────────────────────────────────────────
   document.getElementById('db-ventas').innerHTML = `

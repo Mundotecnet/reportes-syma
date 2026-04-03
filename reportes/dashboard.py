@@ -110,7 +110,7 @@ def get_dashboard_periodo(fecha_ini: str, fecha_fin: str) -> dict:
     return resultado
 
 
-def get_dashboard_saldos() -> dict:
+def get_dashboard_saldos(excluir_itservice: bool = False) -> dict:
     """
     Saldos actuales de CXC y CXP (sin filtro de fecha).
     """
@@ -136,17 +136,18 @@ def get_dashboard_saldos() -> dict:
         print(f"[Dashboard CXC] {e}")
         resultado.update({"saldo_cxc":0,"facturas_pendientes":0})
 
-    # ── Saldo CXP (excluye ITSERVICE PROVEEDOR_ID=178) ───────────────────────
+    # ── Saldo CXP ─────────────────────────────────────────────────────────────
+    _cxp_extra = " AND PROVEEDOR_ID <> 178" if excluir_itservice else ""
     try:
-        rows = ejecutar_query("""
+        rows = ejecutar_query(f"""
             SELECT
                 SUM(ISNULL(SALDO_DOC,0)) AS saldo_cxp,
                 COUNT(*)                 AS facturas_cxp
             FROM ETransacP
-            WHERE ID_CONCEPTO  = '01'
-              AND STATUS       = 'A'
-              AND SALDO_DOC    > 0
-              AND PROVEEDOR_ID <> 178
+            WHERE ID_CONCEPTO = '01'
+              AND STATUS      = 'A'
+              AND SALDO_DOC   > 0
+              {_cxp_extra}
         """)
         r = rows[0] if rows else {}
         resultado.update({

@@ -140,9 +140,10 @@ async def logout(request: Request):
 # DASHBOARD
 # ─────────────────────────────────────────
 @app.get("/api/dashboard")
-async def dashboard(fecha_ini: str = Query(...), fecha_fin: str = Query(...)):
+async def dashboard(fecha_ini: str = Query(...), fecha_fin: str = Query(...),
+                    excluir_itservice: bool = Query(False)):
     periodo = get_dashboard_periodo(fecha_ini, fecha_fin)
-    saldos  = get_dashboard_saldos()
+    saldos  = get_dashboard_saldos(excluir_itservice=excluir_itservice)
     return {**periodo, **saldos}
 
 # ─────────────────────────────────────────
