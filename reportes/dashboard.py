@@ -7,7 +7,7 @@ def get_dashboard_periodo(fecha_ini: str, fecha_fin: str) -> dict:
     """
     resultado = {}
 
-    # ── Ventas (contado + crédito) ────────────────────────────────────────────
+    # ── Ventas (contado + crédito, CRC y USD) ────────────────────────────────
     try:
         rows = ejecutar_query("""
             SELECT
@@ -16,7 +16,13 @@ def get_dashboard_periodo(fecha_ini: str, fecha_fin: str) -> dict:
                 SUM(ISNULL(TOTAL,0))                                             AS ventas_total,
                 COUNT(CASE WHEN ID_CONCEPTO='01' THEN 1 END)                     AS docs_contado,
                 COUNT(CASE WHEN ID_CONCEPTO='02' THEN 1 END)                     AS docs_credito,
-                COUNT(*)                                                          AS docs_total
+                COUNT(*)                                                          AS docs_total,
+                SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) <> 'USD'
+                         THEN ISNULL(TOTAL,0) ELSE 0 END)                        AS ventas_crc,
+                SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'
+                         THEN ISNULL(TOTAL,0) ELSE 0 END)                        AS ventas_usd,
+                COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) <> 'USD' THEN 1 END) AS docs_crc,
+                COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'  THEN 1 END) AS docs_usd
             FROM PUNTO_VENTA
             WHERE CAST(FECHA AS date) BETWEEN ? AND ?
               AND ESTADO = 'A'
@@ -29,11 +35,17 @@ def get_dashboard_periodo(fecha_ini: str, fecha_fin: str) -> dict:
             "docs_contado":   int(r.get("docs_contado")     or 0),
             "docs_credito":   int(r.get("docs_credito")     or 0),
             "docs_total":     int(r.get("docs_total")       or 0),
+            "ventas_crc":     float(r.get("ventas_crc")     or 0),
+            "ventas_usd":     float(r.get("ventas_usd")     or 0),
+            "docs_ventas_crc": int(r.get("docs_crc")        or 0),
+            "docs_ventas_usd": int(r.get("docs_usd")        or 0),
         })
     except Exception as e:
         print(f"[Dashboard ventas] {e}")
         resultado.update({"ventas_contado":0,"ventas_credito":0,"ventas_total":0,
-                          "docs_contado":0,"docs_credito":0,"docs_total":0})
+                          "docs_contado":0,"docs_credito":0,"docs_total":0,
+                          "ventas_crc":0,"ventas_usd":0,
+                          "docs_ventas_crc":0,"docs_ventas_usd":0})
 
     # ── Compras (CRC y USD) ───────────────────────────────────────────────────
     try:
@@ -116,12 +128,16 @@ def get_dashboard_saldos(excluir_itservice: bool = False) -> dict:
     """
     resultado = {}
 
-    # ── Saldo CXC ─────────────────────────────────────────────────────────────
+    # ── Saldo CXC (CRC y USD por separado) ───────────────────────────────────
     try:
         rows = ejecutar_query("""
             SELECT
-                SUM(ISNULL(SALDO_DOC,0)) AS saldo_cxc,
-                COUNT(*)                 AS facturas_pendientes
+                SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) <> 'USD'
+                         THEN ISNULL(SALDO_DOC,0) ELSE 0 END) AS saldo_cxc_crc,
+                SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'
+                         THEN ISNULL(SALDO_DOC,0) ELSE 0 END) AS saldo_cxc_usd,
+                COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) <> 'USD' THEN 1 END) AS facturas_cxc_crc,
+                COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'  THEN 1 END) AS facturas_cxc_usd
             FROM ETransac
             WHERE ID_CONCEPTO = '02'
               AND STATUS      = 'A'
@@ -129,12 +145,15 @@ def get_dashboard_saldos(excluir_itservice: bool = False) -> dict:
         """)
         r = rows[0] if rows else {}
         resultado.update({
-            "saldo_cxc":          float(r.get("saldo_cxc")          or 0),
-            "facturas_pendientes": int(r.get("facturas_pendientes")  or 0),
+            "saldo_cxc_crc":    float(r.get("saldo_cxc_crc")    or 0),
+            "saldo_cxc_usd":    float(r.get("saldo_cxc_usd")    or 0),
+            "facturas_cxc_crc": int(r.get("facturas_cxc_crc")   or 0),
+            "facturas_cxc_usd": int(r.get("facturas_cxc_usd")   or 0),
         })
     except Exception as e:
         print(f"[Dashboard CXC] {e}")
-        resultado.update({"saldo_cxc":0,"facturas_pendientes":0})
+        resultado.update({"saldo_cxc_crc":0,"saldo_cxc_usd":0,
+                          "facturas_cxc_crc":0,"facturas_cxc_usd":0})
 
     # ── Saldo CXP (CRC y USD por separado) ───────────────────────────────────
     _cxp_extra = " AND PROVEEDOR_ID <> 178" if excluir_itservice else ""
