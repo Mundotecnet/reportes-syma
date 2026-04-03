@@ -136,16 +136,17 @@ def get_dashboard_saldos() -> dict:
         print(f"[Dashboard CXC] {e}")
         resultado.update({"saldo_cxc":0,"facturas_pendientes":0})
 
-    # ── Saldo CXP ─────────────────────────────────────────────────────────────
+    # ── Saldo CXP (excluye ITSERVICE PROVEEDOR_ID=178) ───────────────────────
     try:
         rows = ejecutar_query("""
             SELECT
                 SUM(ISNULL(SALDO_DOC,0)) AS saldo_cxp,
                 COUNT(*)                 AS facturas_cxp
             FROM ETransacP
-            WHERE ID_CONCEPTO = '01'
-              AND STATUS      = 'A'
-              AND SALDO_DOC   > 0
+            WHERE ID_CONCEPTO  = '01'
+              AND STATUS       = 'A'
+              AND SALDO_DOC    > 0
+              AND PROVEEDOR_ID <> 178
         """)
         r = rows[0] if rows else {}
         resultado.update({
