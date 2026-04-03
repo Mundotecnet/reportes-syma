@@ -136,13 +136,17 @@ def get_dashboard_saldos(excluir_itservice: bool = False) -> dict:
         print(f"[Dashboard CXC] {e}")
         resultado.update({"saldo_cxc":0,"facturas_pendientes":0})
 
-    # ── Saldo CXP ─────────────────────────────────────────────────────────────
+    # ── Saldo CXP (CRC y USD por separado) ───────────────────────────────────
     _cxp_extra = " AND PROVEEDOR_ID <> 178" if excluir_itservice else ""
     try:
         rows = ejecutar_query(f"""
             SELECT
-                SUM(ISNULL(SALDO_DOC,0)) AS saldo_cxp,
-                COUNT(*)                 AS facturas_cxp
+                SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'COL')) <> 'USD'
+                         THEN ISNULL(SALDO_DOC,0) ELSE 0 END) AS saldo_cxp_crc,
+                SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'COL')) = 'USD'
+                         THEN ISNULL(SALDO_DOC,0) ELSE 0 END) AS saldo_cxp_usd,
+                COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'COL')) <> 'USD' THEN 1 END) AS facturas_cxp_crc,
+                COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'COL')) = 'USD'  THEN 1 END) AS facturas_cxp_usd
             FROM ETransacP
             WHERE ID_CONCEPTO = '01'
               AND STATUS      = 'A'
@@ -151,11 +155,14 @@ def get_dashboard_saldos(excluir_itservice: bool = False) -> dict:
         """)
         r = rows[0] if rows else {}
         resultado.update({
-            "saldo_cxp":    float(r.get("saldo_cxp")    or 0),
-            "facturas_cxp": int(r.get("facturas_cxp")   or 0),
+            "saldo_cxp_crc":    float(r.get("saldo_cxp_crc")    or 0),
+            "saldo_cxp_usd":    float(r.get("saldo_cxp_usd")    or 0),
+            "facturas_cxp_crc": int(r.get("facturas_cxp_crc")   or 0),
+            "facturas_cxp_usd": int(r.get("facturas_cxp_usd")   or 0),
         })
     except Exception as e:
         print(f"[Dashboard CXP] {e}")
-        resultado.update({"saldo_cxp":0,"facturas_cxp":0})
+        resultado.update({"saldo_cxp_crc":0,"saldo_cxp_usd":0,
+                          "facturas_cxp_crc":0,"facturas_cxp_usd":0})
 
     return resultado

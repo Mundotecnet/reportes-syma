@@ -1370,6 +1370,7 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
 
 <script>
 const crc = v => '₡' + (parseFloat(v)||0).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const usd = v => '$' + (parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
 // Fechas por defecto: primer día del mes actual a hoy
 const hoy = new Date();
@@ -3691,8 +3692,12 @@ async function cargarDashboard() {
       <div class="metric-lbl">Saldo CXC <small style="color:#aaa">(${res.facturas_pendientes} facturas)</small></div>
     </div>
     <div class="metric-card" style="border-top:3px solid #e53935">
-      <div class="metric-val" style="color:#e53935">${crc(res.saldo_cxp)}</div>
-      <div class="metric-lbl">Saldo CXP <small style="color:#aaa">(${res.facturas_cxp} facturas)</small></div>
+      <div class="metric-val" style="color:#e53935">${crc(res.saldo_cxp_crc)}</div>
+      <div class="metric-lbl">Saldo CXP colones <small style="color:#aaa">(${res.facturas_cxp_crc} facturas)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #b71c1c">
+      <div class="metric-val" style="color:#b71c1c">${usd(res.saldo_cxp_usd)}</div>
+      <div class="metric-lbl">Saldo CXP dólares <small style="color:#aaa">(${res.facturas_cxp_usd} facturas)</small></div>
     </div>`;
 }
 
