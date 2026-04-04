@@ -128,20 +128,19 @@ def get_dashboard_saldos(excluir_itservice: bool = False) -> dict:
     """
     resultado = {}
 
-    # ── Saldo CXC (CRC y USD por separado) ───────────────────────────────────
+    # ── Saldo CXC — fuente: Clientes.SALDO (igual que reporte CxC) ───────────
     try:
         rows = ejecutar_query("""
             SELECT
                 SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) <> 'USD'
-                         THEN ISNULL(SALDO_DOC,0) ELSE 0 END) AS saldo_cxc_crc,
+                         THEN ISNULL(SALDO,0) ELSE 0 END) AS saldo_cxc_crc,
                 SUM(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'
-                         THEN ISNULL(SALDO_DOC,0) ELSE 0 END) AS saldo_cxc_usd,
+                         THEN ISNULL(SALDO,0) ELSE 0 END) AS saldo_cxc_usd,
                 COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) <> 'USD' THEN 1 END) AS facturas_cxc_crc,
                 COUNT(CASE WHEN RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'  THEN 1 END) AS facturas_cxc_usd
-            FROM ETransac
-            WHERE ID_CONCEPTO = '02'
-              AND STATUS      = 'A'
-              AND SALDO_DOC   > 0
+            FROM Clientes
+            WHERE ESTADO = 'A'
+              AND SALDO   > 0
         """)
         r = rows[0] if rows else {}
         resultado.update({
