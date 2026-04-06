@@ -3,7 +3,7 @@
 **Servidor:** Ubuntu 192.168.88.250:8000
 **Ruta local:** `/Users/lroot/Downloads/reportes-syma`
 **Ruta servidor:** `/home/lroot/reportes-syma`
-**Última actualización:** 2026-04-01
+**Última actualización:** 2026-04-04
 
 ---
 
@@ -25,6 +25,7 @@
 ### Módulos funcionando al 100%
 | Módulo | Tab ID | Descripción |
 |--------|--------|-------------|
+| **Dashboard** | `dashboard` | Métricas consolidadas: ventas, compras, bienes/servicios, crédito, CXC, CXP por moneda |
 | Ventas | `ventas` | Facturas contado/crédito con filtros y exportación |
 | Pago de Clientes | `pagos` | Pagos recibidos |
 | Compras | `compras` | Facturas de proveedores con detalle de líneas |
@@ -44,6 +45,7 @@
 
 ### Orden de tabs en navegación
 ```
+📊 Dashboard:  dashboard
 💰 Ventas:     ventas → pagos → productos → cxc → cv
 🛒 Compras:    compras → cxp → cal-pagos
 📦 Inventario: inv-ajustes → hist-ajustes
@@ -165,6 +167,9 @@ sshpass -p '87060002' ssh lroot@192.168.88.250 "sudo journalctl -u reportes.serv
 | `M_ROLES` | Roles del sistema de reportes |
 | `M_ROL_MODULOS` | Módulos habilitados por rol |
 | `M_USUARIO_ROL` | Asignación usuario → rol |
+| `ETransac` | Transacciones CXC (ID_CONCEPTO='02', STATUS='A'). **OJO:** usar `Clientes.SALDO` para totales CXC, no `ETransac.SALDO_DOC` (ETransac tiene facturas históricas duplicadas) |
+| `ETransacP` | Transacciones CXP (ID_CONCEPTO='01', STATUS='A', SALDO_DOC>0) |
+| `COMPRAS` | Facturas de proveedores. ID_MONEDA: 'CRC' o 'USD'. PROVEEDOR_ID=178 = IT SERVICE S.A. |
 
 ### ORDEN_SERVICIO — columnas importantes
 | Columna | Descripción |
@@ -225,6 +230,9 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 3. **TAB_LABELS duplicado** — Hay DOS instancias de este dict en `index.html`. Siempre actualizar ambas.
 4. **SSH interactivo** — Nunca usar `pkill` vía SSH (mata la sesión). Siempre usar `systemctl restart`.
 5. **Días abierta** — Solo se muestra en estados 1 y 2. El contador se detiene al pasar a estado 3, 4 o 5 usando `FECHA_ESTADO` como fecha de cierre.
+6. **CXC saldo correcto** — Siempre usar `Clientes.SALDO` (118 clientes ≈ ₡10.5M). `ETransac.SALDO_DOC` devuelve 4x más porque incluye transacciones históricas. Confirmado contra reporte Excel de Syma.
+7. **IT SERVICE PROVEEDOR_ID=178** — `IT SERVICE SOCIEDAD ANONIMA`. Excluir de Compras y CXP con checkbox. En Dashboard CXP es exclusión permanente por parámetro `excluir_itservice`.
+8. **Monedas en Dashboard** — Ventas: `PUNTO_VENTA.ID_MONEDA`. CXC: `Clientes.ID_MONEDA`. CXP: `ETransacP.ID_MONEDA`. Detectar USD con `RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'`.
 
 ---
 
@@ -265,6 +273,25 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 | 14 | Infra | `git init` local + `.gitignore` + commit inicial `v1.0.0` | `.gitignore`, todos |
 | 15 | Infra | Servidor Ubuntu configurado como remoto `servidor`. `receive.denyCurrentBranch updateInstead` para push directo | servidor |
 | 16 | Docs | Bitácora reestructurada con sección "Estado actual", frases clave de sesión y checklist de 9 pasos para nuevos tabs | `BITACORA_TECNICA.md` |
+
+### [SESIÓN 3] Dashboard General + Excluir IT SERVICE
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 17 | Nuevo | Tab `dashboard` como primer grupo de navegación. Métricas: ventas (contado/crédito), compras (CRC/USD), bienes/servicios, recuperación crédito, saldo CXC, saldo CXP | `reportes/dashboard.py`, `main.py`, `index.html`, `permisos.py` |
+| 18 | Nuevo | Botones de período rápido: "Este mes", "Mes anterior", "Este año" en dashboard | `index.html` |
+| 19 | Nuevo | Proveedor IT SERVICE (PROVEEDOR_ID=178) excluible con checkbox en tabs Compras y CXP | `reportes/compras.py`, `reportes/cxp.py`, `main.py`, `index.html` |
+| 20 | Nuevo | Checkbox "Sin IT SERVICE" en Dashboard — filtra saldo CXP | `reportes/dashboard.py`, `main.py`, `index.html` |
+
+### [SESIÓN 4] Dashboard — Separación por moneda + Fix CXC
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 21 | Nuevo | Saldo CXP en dashboard separado en colones y dólares (`ETransacP.ID_MONEDA`) | `reportes/dashboard.py`, `index.html` |
+| 22 | Nuevo | Ventas en dashboard separadas en colones y dólares (`PUNTO_VENTA.ID_MONEDA`) | `reportes/dashboard.py`, `index.html` |
+| 23 | Nuevo | Saldo CXC en dashboard separado en colones y dólares | `reportes/dashboard.py`, `index.html` |
+| 24 | Fix | **CXC dashboard incorrecto**: usaba `ETransac.SALDO_DOC` (₡44.6M / 412 facturas) en lugar de `Clientes.SALDO` (₡10.5M / 118 clientes). Auditado contra Excel de Syma. Corregido a `FROM Clientes WHERE ESTADO='A' AND SALDO>0` | `reportes/dashboard.py`, `index.html` |
+| 25 | Fix | `usd()` formatter no estaba en scope global. Movido junto a `crc()` en línea 1372 para que `cargarDashboard()` pueda usarlo | `index.html` |
 
 ---
 *Actualizar esta bitácora al cierre de cada sesión con `"cierra la sesión"`*
