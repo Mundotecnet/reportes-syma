@@ -65,7 +65,7 @@ def get_facturas_proceso(fecha_ini: str = "", fecha_fin: str = "", busqueda: str
             ISNULL(pvd.IMPORTE, 0) + ISNULL(pvd.MONTO_IMP, 0) AS total_linea
         FROM PUNTO_VENTA_DETALLE pvd
         WHERE pvd.ID_DOCUMENTO IN ({placeholders})
-        ORDER BY pvd.ID_DOCUMENTO, pvd.LINEA
+        ORDER BY pvd.ID_DOCUMENTO, pvd.ID_CP
     """
     lineas = ejecutar_query(sql_det, tuple(ids))
 
