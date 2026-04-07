@@ -2,7 +2,7 @@ from db import ejecutar_query, get_connection
 
 MODULOS_TODOS = [
     'dashboard',
-    'ventas', 'pagos', 'compras', 'productos', 'cxc',
+    'ventas', 'pagos', 'compras', 'productos', 'cxc', 'fproceso',
     'inventario', 'inv-ajustes', 'hist-ajustes', 'cv',
     'taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra',
     'cxp', 'admin'
@@ -10,7 +10,7 @@ MODULOS_TODOS = [
 
 MODULOS_POR_ROL_DEFAULT = {
     'Administrador': MODULOS_TODOS,
-    'Ventas':        ['ventas', 'pagos', 'productos', 'cxc', 'cv'],
+    'Ventas':        ['ventas', 'pagos', 'productos', 'cxc', 'cv', 'fproceso'],
     'Compras':       ['compras', 'cxp'],
     'Inventario':    ['inventario', 'inv-ajustes', 'hist-ajustes'],
     'Taller':        ['taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra'],

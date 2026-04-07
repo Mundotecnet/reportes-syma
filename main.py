@@ -20,6 +20,7 @@ from reportes.inventario        import get_inventario, get_categorias_producto, 
 from reportes.inventario_ajustes import get_inventario_ajustes, aplicar_ajuste_fisico, get_historial_ajustes, get_detalle_ajuste
 from reportes.compras_ventas     import get_compras_ventas_grafico
 from reportes.dashboard          import get_dashboard_periodo, get_dashboard_saldos
+from reportes.facturas_proceso   import get_facturas_proceso
 from reportes.taller             import get_taller, get_detalle_taller, get_siguiente_no_orden, buscar_clientes, get_agenda_dia, get_agenda_mes, get_ordenes_antiguas, get_servicios_st003, crear_orden, get_orden_completa, mover_orden, reordenar_dia
 from reportes.ordenes_compra     import get_siguiente_no_oc, crear_oc, get_historial_oc, get_oc, actualizar_estado_oc, eliminar_oc
 from reportes.permisos           import get_modulos_usuario, get_roles, get_modulos_rol, get_usuarios_con_rol, asignar_rol_usuario, actualizar_modulos_rol, crear_rol, MODULOS_TODOS
@@ -145,6 +146,11 @@ async def dashboard(fecha_ini: str = Query(...), fecha_fin: str = Query(...),
     periodo = get_dashboard_periodo(fecha_ini, fecha_fin)
     saldos  = get_dashboard_saldos(excluir_itservice=excluir_itservice)
     return {**periodo, **saldos}
+
+@app.get("/api/facturas-proceso")
+async def facturas_proceso(fecha_ini: str = Query(""), fecha_fin: str = Query(""),
+                           busqueda: str = Query("")):
+    return get_facturas_proceso(fecha_ini=fecha_ini, fecha_fin=fecha_fin, busqueda=busqueda)
 
 # ─────────────────────────────────────────
 # PÁGINA PRINCIPAL

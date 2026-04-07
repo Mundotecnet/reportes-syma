@@ -150,6 +150,63 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
   </div>
 
   <!-- ══════════ VENTAS ══════════ -->
+  <!-- ══ FACTURAS EN PROCESO ══ -->
+  <div id="tab-fproceso" class="panel">
+    <div class="fcard">
+      <h3>Filtros — Facturas en Proceso</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+        <div class="fi"><label>Fecha inicio</label><input type="date" id="fp-fi"></div>
+        <div class="fi"><label>Fecha fin</label><input type="date" id="fp-ff"></div>
+        <div class="fi"><label>Buscar (cliente / cédula / N° doc)</label><input type="text" id="fp-busqueda" placeholder="Escribir..." onkeydown="if(event.key==='Enter')cargarFProceso()"></div>
+        <button class="btn-run" onclick="cargarFProceso()">Generar</button>
+      </div>
+    </div>
+
+    <div id="fp-metricas" style="display:none;margin-bottom:16px">
+      <div class="metrics">
+        <div class="metric-card" style="border-top:3px solid #e65100">
+          <div class="metric-val" style="color:#e65100" id="fp-m-docs">—</div>
+          <div class="metric-lbl">Facturas en proceso</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #bf360c">
+          <div class="metric-val" style="color:#bf360c" id="fp-m-crc">—</div>
+          <div class="metric-lbl">Total colones</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #4e342e">
+          <div class="metric-val" style="color:#4e342e" id="fp-m-usd">—</div>
+          <div class="metric-lbl">Total dólares</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #6d4c41">
+          <div class="metric-val" style="color:#6d4c41" id="fp-m-clientes">—</div>
+          <div class="metric-lbl">Clientes distintos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tcard" id="fp-tabla-wrap" style="display:none">
+      <table id="fp-tabla">
+        <thead>
+          <tr>
+            <th style="width:30px"></th>
+            <th>N° Doc</th>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Cliente</th>
+            <th>Cédula</th>
+            <th>Moneda</th>
+            <th>Subtotal</th>
+            <th>IVA</th>
+            <th>Total</th>
+            <th>N° Factura FE</th>
+            <th>Estado FE</th>
+          </tr>
+        </thead>
+        <tbody id="fp-tbody"></tbody>
+      </table>
+    </div>
+    <div id="fp-empty" style="display:none;text-align:center;color:#aaa;padding:40px">Sin facturas en proceso para los filtros seleccionados.</div>
+  </div>
+
   <div id="tab-ventas" class="panel active">
     <div class="fcard">
       <h3>Filtros — Ventas</h3>
@@ -1376,8 +1433,8 @@ const usd = v => '$' + (parseFloat(v)||0).toLocaleString('en-US',{minimumFractio
 const hoy = new Date();
 const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
 const hoyStr = hoy.toISOString().split('T')[0];
-['db-fi','v-fi','p-fi','c-fi','pr-fi','ta-fi','ha-fi','st3-fi'].forEach(id => document.getElementById(id).value = primerDia);
-['db-ff','v-ff','p-ff','c-ff','pr-ff','ta-ff','ha-ff','st3-ff'].forEach(id => document.getElementById(id).value = hoyStr);
+['db-fi','v-fi','p-fi','c-fi','pr-fi','ta-fi','ha-fi','st3-fi','fp-fi'].forEach(id => document.getElementById(id).value = primerDia);
+['db-ff','v-ff','p-ff','c-ff','pr-ff','ta-ff','ha-ff','st3-ff','fp-ff'].forEach(id => document.getElementById(id).value = hoyStr);
 
 
 // Verificar conexión y cargar usuario de sesión
@@ -1390,7 +1447,7 @@ fetch('/api/me').then(r=>r.json()).then(d=>{
   initNav(d.modulos || [
     'dashboard','ventas','pagos','compras','productos','cxc','inventario',
     'inv-ajustes','hist-ajustes','cv','taller','ingreso-taller',
-    'agenda-taller','st003','orden-compra','cxp','admin'
+    'agenda-taller','st003','orden-compra','cxp','fproceso','admin'
   ]);
 });
 
@@ -1441,7 +1498,7 @@ fetch('/api/proveedores').then(r=>r.json()).then(data=>{
 // ── Navegación agrupada ───────────────────────────────────────
 const GRUPOS_NAV = {
   dashboard:  { label:'📊 Dashboard',  tabs:['dashboard'] },
-  ventas:     { label:'💰 Ventas',     tabs:['ventas','pagos','productos','cxc','cv'] },
+  ventas:     { label:'💰 Ventas',     tabs:['ventas','pagos','productos','cxc','cv','fproceso'] },
   compras:    { label:'🛒 Compras',    tabs:['compras','cxp','cal-pagos'] },
   inventario: { label:'📦 Inventario', tabs:['inv-ajustes','hist-ajustes'] },
   taller:     { label:'🔧 Taller',     tabs:['taller','st003','ingreso-taller','agenda-taller','orden-compra'] },
@@ -1454,7 +1511,7 @@ const TAB_LABELS = {
   inventario:'Inventario', 'inv-ajustes':'Inv. Ajustes', 'hist-ajustes':'Historial Ajustes',
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
-  'cal-pagos':'Calendario Pagos', admin:'Usuarios y Permisos'
+  'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso', admin:'Usuarios y Permisos'
 };
 
 let _grupoActivo = 'ventas';
@@ -3946,6 +4003,115 @@ async function cargarST003() {
 }
 
 // ══════════════════════════════════════════════════════
+//  FACTURAS EN PROCESO
+// ══════════════════════════════════════════════════════
+async function cargarFProceso() {
+  const fi       = document.getElementById('fp-fi').value;
+  const ff       = document.getElementById('fp-ff').value;
+  const busqueda = document.getElementById('fp-busqueda').value.trim();
+
+  document.getElementById('fp-metricas').style.display    = 'none';
+  document.getElementById('fp-tabla-wrap').style.display  = 'none';
+  document.getElementById('fp-empty').style.display       = 'none';
+  document.getElementById('fp-tbody').innerHTML =
+    '<tr><td colspan="12" class="loading">Cargando...</td></tr>';
+  document.getElementById('fp-tabla-wrap').style.display = 'block';
+
+  let url = `/api/facturas-proceso?busqueda=${encodeURIComponent(busqueda)}`;
+  if (fi && ff) url += `&fecha_ini=${fi}&fecha_fin=${ff}`;
+
+  const data = await fetch(url).then(r => r.json());
+
+  if (!data.length) {
+    document.getElementById('fp-tabla-wrap').style.display = 'none';
+    document.getElementById('fp-empty').style.display      = 'block';
+    document.getElementById('fp-metricas').style.display   = 'block';
+    document.getElementById('fp-m-docs').textContent      = '0';
+    document.getElementById('fp-m-crc').textContent       = crc(0);
+    document.getElementById('fp-m-usd').textContent       = usd(0);
+    document.getElementById('fp-m-clientes').textContent  = '0';
+    return;
+  }
+
+  // Métricas
+  const totalCRC     = data.filter(f => f.moneda !== 'USD').reduce((s, f) => s + f.total, 0);
+  const totalUSD     = data.filter(f => f.moneda === 'USD').reduce((s, f) => s + f.total, 0);
+  const clientesSet  = new Set(data.map(f => f.cedula || f.cliente));
+  document.getElementById('fp-m-docs').textContent     = data.length;
+  document.getElementById('fp-m-crc').textContent      = crc(totalCRC);
+  document.getElementById('fp-m-usd').textContent      = usd(totalUSD);
+  document.getElementById('fp-m-clientes').textContent = clientesSet.size;
+  document.getElementById('fp-metricas').style.display = 'block';
+
+  // Tabla
+  const conceptoLabel = c => c === '01' ? 'Contado' : c === '02' ? 'Crédito' : c;
+  const feLabel = r => {
+    if (r.num_factura && r.num_factura.trim()) return `<span style="font-size:10px;color:#555">${r.num_factura.trim().slice(-10)}</span>`;
+    return '<span style="color:#aaa">—</span>';
+  };
+  const feRespuesta = r => {
+    if (!r.respuesta_fe || !r.respuesta_fe.trim()) return '<span style="color:#e65100;font-size:11px">Sin enviar</span>';
+    return `<span style="font-size:10px;color:#555">${r.respuesta_fe.trim().slice(0,30)}</span>`;
+  };
+
+  let html = '';
+  data.forEach((f, i) => {
+    const monedaSym = f.moneda === 'USD' ? usd(f.total) : crc(f.total);
+    const subSym    = f.moneda === 'USD' ? usd(f.subtotal) : crc(f.subtotal);
+    const ivaSym    = f.moneda === 'USD' ? usd(f.iva) : crc(f.iva);
+    html += `<tr style="cursor:pointer" onclick="toggleFPLineas(${i}, this)">
+      <td style="text-align:center;color:#aaa">▶</td>
+      <td class="r"><strong>${f.id_documento}</strong></td>
+      <td style="font-size:11px">${f.fecha ? f.fecha.split('T')[0] : '—'}</td>
+      <td style="font-size:11px">${conceptoLabel(f.concepto)}</td>
+      <td>${f.cliente || '—'}</td>
+      <td style="font-size:11px;color:#555">${f.cedula || '—'}</td>
+      <td style="font-size:11px">${f.moneda}</td>
+      <td class="r">${subSym}</td>
+      <td class="r">${ivaSym}</td>
+      <td class="r"><strong>${monedaSym}</strong></td>
+      <td>${feLabel(f)}</td>
+      <td>${feRespuesta(f)}</td>
+    </tr>`;
+    // Fila de detalle (oculta)
+    if (f.lineas && f.lineas.length) {
+      let lineasHtml = f.lineas.map(l => `
+        <tr style="background:#fafafa;font-size:11px">
+          <td></td>
+          <td style="color:#888">${l.codigo}</td>
+          <td colspan="3">${l.descripcion}</td>
+          <td></td>
+          <td></td>
+          <td class="r">${(l.cantidad||0).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+          <td class="r">${crc(l.precio_unit)}</td>
+          <td class="r">${crc(l.importe)}</td>
+          <td class="r" style="color:#888">${crc(l.iva_linea)}</td>
+          <td class="r"><strong>${crc(l.total_linea)}</strong></td>
+        </tr>`).join('');
+      html += `<tr id="fp-det-${i}" style="display:none"><td colspan="12" style="padding:0">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f0f4fa;font-size:10px">
+            <th></th><th>Código</th><th colspan="3">Descripción</th>
+            <th></th><th></th><th>Cant</th><th>P.Unit</th><th>Importe</th><th>IVA</th><th>Total</th>
+          </tr></thead>
+          <tbody>${lineasHtml}</tbody>
+        </table></td></tr>`;
+    }
+  });
+
+  document.getElementById('fp-tbody').innerHTML = html;
+  document.getElementById('fp-tabla-wrap').style.display = 'block';
+}
+
+function toggleFPLineas(i, row) {
+  const det = document.getElementById(`fp-det-${i}`);
+  if (!det) return;
+  const visible = det.style.display !== 'none';
+  det.style.display = visible ? 'none' : 'table-row';
+  row.cells[0].textContent = visible ? '▶' : '▼';
+}
+
+// ══════════════════════════════════════════════════════
 //  HISTORIAL AJUSTES
 // ══════════════════════════════════════════════════════
 async function cargarHistorialAjustes() {
@@ -4888,11 +5054,12 @@ const MODULO_LABELS = {
   dashboard:'Dashboard',
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
-  'cal-pagos':'Calendario Pagos', admin:'Admin'
+  'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso', admin:'Admin'
 };
-const MODULOS_ORDEN = ['dashboard','ventas','pagos','compras','productos','cxc','cv',
+const MODULOS_ORDEN = ['dashboard','ventas','pagos','productos','cxc','cv','fproceso',
+  'compras','cxp','cal-pagos',
   'inv-ajustes','hist-ajustes','taller','st003','ingreso-taller',
-  'agenda-taller','orden-compra','cxp','cal-pagos','admin'];
+  'agenda-taller','orden-compra','admin'];
 
 let _admRoles = [], _admRolSelId = null;
 
