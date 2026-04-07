@@ -221,7 +221,7 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
               <th class="r">Importe</th>
               <th class="r">IVA</th>
               <th class="r">Total</th>
-              <th class="r">Facturas</th>
+              <th>Documentos</th>
             </tr>
           </thead>
           <tbody id="fp-resumen-tbody"></tbody>
@@ -4149,6 +4149,9 @@ async function cargarFProceso() {
   const prods = Object.values(prodMap).sort((a, b) => b.total - a.total);
   let resHtml = '';
   prods.forEach(p => {
+    const docsHtml = [...p.facturas].sort((a,b)=>a-b).map(d =>
+      `<span style="display:inline-block;background:#e3f2fd;color:#1565c0;border-radius:3px;padding:1px 5px;font-size:10px;margin:1px">${d}</span>`
+    ).join('');
     resHtml += `<tr>
       <td style="font-size:11px;color:#555">${p.codigo}</td>
       <td>${p.descripcion}</td>
@@ -4156,7 +4159,7 @@ async function cargarFProceso() {
       <td class="r">${crc(p.importe)}</td>
       <td class="r" style="color:#888">${crc(p.iva)}</td>
       <td class="r"><strong>${crc(p.total)}</strong></td>
-      <td class="r" style="color:#888">${p.facturas.size}</td>
+      <td style="white-space:normal">${docsHtml}</td>
     </tr>`;
   });
   // Fila de totales
