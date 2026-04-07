@@ -4103,7 +4103,8 @@ async function cargarFProceso() {
         <tr style="background:#fafafa;font-size:11px">
           <td></td>
           <td style="color:#888">${l.codigo}</td>
-          <td colspan="3">${l.descripcion}</td>
+          <td colspan="2">${l.descripcion}</td>
+          <td>${l.serial ? `<span style="background:#fff3e0;color:#e65100;padding:1px 5px;border-radius:3px;font-size:10px">📋 ${l.serial}</span>` : ''}</td>
           <td></td>
           <td></td>
           <td class="r">${(l.cantidad||0).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
@@ -4115,7 +4116,7 @@ async function cargarFProceso() {
       html += `<tr id="fp-det-${i}" style="display:none"><td colspan="12" style="padding:0">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:#f0f4fa;font-size:10px">
-            <th></th><th>Código</th><th colspan="3">Descripción</th>
+            <th></th><th>Código</th><th colspan="2">Descripción</th><th>Serial</th>
             <th></th><th></th><th>Cant</th><th>P.Unit</th><th>Importe</th><th>IVA</th><th>Total</th>
           </tr></thead>
           <tbody>${lineasHtml}</tbody>
