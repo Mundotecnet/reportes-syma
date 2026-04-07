@@ -205,6 +205,29 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
       </table>
     </div>
     <div id="fp-empty" style="display:none;text-align:center;color:#aaa;padding:40px">Sin facturas en proceso para los filtros seleccionados.</div>
+
+    <!-- Resumen acumulado por producto -->
+    <div id="fp-resumen-wrap" style="display:none;margin-top:24px">
+      <div style="font-size:13px;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #e65100;padding-bottom:4px;margin-bottom:10px">
+        📦 Acumulado por Producto
+      </div>
+      <div class="tcard">
+        <table id="fp-resumen-tabla">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th class="r">Cantidad</th>
+              <th class="r">Importe</th>
+              <th class="r">IVA</th>
+              <th class="r">Total</th>
+              <th class="r">Facturas</th>
+            </tr>
+          </thead>
+          <tbody id="fp-resumen-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div id="tab-ventas" class="panel active">
@@ -4013,6 +4036,7 @@ async function cargarFProceso() {
   document.getElementById('fp-metricas').style.display    = 'none';
   document.getElementById('fp-tabla-wrap').style.display  = 'none';
   document.getElementById('fp-empty').style.display       = 'none';
+  document.getElementById('fp-resumen-wrap').style.display = 'none';
   document.getElementById('fp-tbody').innerHTML =
     '<tr><td colspan="12" class="loading">Cargando...</td></tr>';
   document.getElementById('fp-tabla-wrap').style.display = 'block';
@@ -4101,6 +4125,56 @@ async function cargarFProceso() {
 
   document.getElementById('fp-tbody').innerHTML = html;
   document.getElementById('fp-tabla-wrap').style.display = 'block';
+
+  // ── Resumen acumulado por producto ───────────────────────────────────────
+  const prodMap = {};
+  data.forEach(f => {
+    (f.lineas || []).forEach(l => {
+      const key = l.codigo || l.descripcion;
+      if (!prodMap[key]) {
+        prodMap[key] = {
+          codigo: l.codigo, descripcion: l.descripcion,
+          cantidad: 0, importe: 0, iva: 0, total: 0, facturas: new Set()
+        };
+      }
+      prodMap[key].cantidad += l.cantidad    || 0;
+      prodMap[key].importe  += l.importe     || 0;
+      prodMap[key].iva      += l.iva_linea   || 0;
+      prodMap[key].total    += l.total_linea || 0;
+      prodMap[key].facturas.add(f.id_documento);
+    });
+  });
+
+  const prods = Object.values(prodMap).sort((a, b) => b.total - a.total);
+  let resHtml = '';
+  prods.forEach(p => {
+    resHtml += `<tr>
+      <td style="font-size:11px;color:#555">${p.codigo}</td>
+      <td>${p.descripcion}</td>
+      <td class="r">${(p.cantidad).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td class="r">${crc(p.importe)}</td>
+      <td class="r" style="color:#888">${crc(p.iva)}</td>
+      <td class="r"><strong>${crc(p.total)}</strong></td>
+      <td class="r" style="color:#888">${p.facturas.size}</td>
+    </tr>`;
+  });
+  // Fila de totales
+  const totRes = prods.reduce((acc, p) => ({
+    cantidad: acc.cantidad + p.cantidad,
+    importe:  acc.importe  + p.importe,
+    iva:      acc.iva      + p.iva,
+    total:    acc.total    + p.total
+  }), {cantidad:0, importe:0, iva:0, total:0});
+  resHtml += `<tr style="background:#fff3e0;font-weight:700">
+    <td colspan="2">TOTAL</td>
+    <td class="r">${(totRes.cantidad).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+    <td class="r">${crc(totRes.importe)}</td>
+    <td class="r">${crc(totRes.iva)}</td>
+    <td class="r">${crc(totRes.total)}</td>
+    <td></td>
+  </tr>`;
+  document.getElementById('fp-resumen-tbody').innerHTML = resHtml;
+  document.getElementById('fp-resumen-wrap').style.display = 'block';
 }
 
 function toggleFPLineas(i, row) {
