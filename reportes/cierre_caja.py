@@ -9,17 +9,32 @@ def get_cierre_caja(fecha: str) -> dict:
     """
 
     # ── VENTAS del día ────────────────────────────────────────────────────────
+    # Solo contado (ID_CONCEPTO='01') entra en el desglose de cobro.
+    # Crédito (ID_CONCEPTO='02') se muestra aparte — el dinero llega por CXC.
     ventas = ejecutar_query("""
         SELECT
-            COUNT(*)                                                        AS docs,
-            SUM(ISNULL(TOTAL, 0))                                           AS total,
-            SUM(ISNULL(MONTO_TARJETAS, 0))                                  AS tarjetas,
-            SUM(ISNULL(MONTO_CHEQUES, 0))                                   AS cheques,
-            SUM(ISNULL(MONTO_TRANSFERENCIAS, 0))                            AS transferencias,
-            SUM(ISNULL(TOTAL, 0)
-                - ISNULL(MONTO_TARJETAS, 0)
-                - ISNULL(MONTO_CHEQUES, 0)
-                - ISNULL(MONTO_TRANSFERENCIAS, 0))                          AS efectivo
+            COUNT(*)                                                         AS docs,
+            SUM(ISNULL(TOTAL, 0))                                            AS total,
+
+            -- Contado: desglose por forma de pago
+            SUM(CASE WHEN RTRIM(ID_CONCEPTO)='01'
+                     THEN ISNULL(MONTO_TARJETAS,0) ELSE 0 END)              AS tarjetas,
+            SUM(CASE WHEN RTRIM(ID_CONCEPTO)='01'
+                     THEN ISNULL(MONTO_CHEQUES,0) ELSE 0 END)               AS cheques,
+            SUM(CASE WHEN RTRIM(ID_CONCEPTO)='01'
+                     THEN ISNULL(MONTO_TRANSFERENCIAS,0) ELSE 0 END)        AS transferencias,
+            SUM(CASE WHEN RTRIM(ID_CONCEPTO)='01'
+                     THEN ISNULL(TOTAL,0)
+                          - ISNULL(MONTO_TARJETAS,0)
+                          - ISNULL(MONTO_CHEQUES,0)
+                          - ISNULL(MONTO_TRANSFERENCIAS,0)
+                     ELSE 0 END)                                             AS efectivo,
+
+            -- Crédito: monto facturado pendiente de cobro
+            SUM(CASE WHEN RTRIM(ID_CONCEPTO)='02'
+                     THEN ISNULL(TOTAL,0) ELSE 0 END)                       AS credito,
+            COUNT(CASE WHEN RTRIM(ID_CONCEPTO)='02' THEN 1 END)             AS docs_credito,
+            COUNT(CASE WHEN RTRIM(ID_CONCEPTO)='01' THEN 1 END)             AS docs_contado
         FROM PUNTO_VENTA
         WHERE CAST(FECHA AS date) = ?
           AND ESTADO = 'A'
@@ -78,10 +93,12 @@ def get_cierre_caja(fecha: str) -> dict:
             ISNULL(pv.MONTO_TARJETAS, 0)                                     AS tarjetas,
             ISNULL(pv.MONTO_CHEQUES, 0)                                      AS cheques,
             ISNULL(pv.MONTO_TRANSFERENCIAS, 0)                               AS transferencias,
-            ISNULL(pv.TOTAL,0)
-              - ISNULL(pv.MONTO_TARJETAS,0)
-              - ISNULL(pv.MONTO_CHEQUES,0)
-              - ISNULL(pv.MONTO_TRANSFERENCIAS,0)                            AS efectivo
+            CASE WHEN RTRIM(pv.ID_CONCEPTO)='01'
+                 THEN ISNULL(pv.TOTAL,0)
+                      - ISNULL(pv.MONTO_TARJETAS,0)
+                      - ISNULL(pv.MONTO_CHEQUES,0)
+                      - ISNULL(pv.MONTO_TRANSFERENCIAS,0)
+                 ELSE 0 END                                                  AS efectivo
         FROM PUNTO_VENTA pv
         LEFT JOIN TipoPago tp ON RTRIM(tp.ID_TIPOPAGO) = RTRIM(pv.ID_TIPOPAGO)
         WHERE CAST(pv.FECHA AS date) = ?
@@ -120,6 +137,9 @@ def get_cierre_caja(fecha: str) -> dict:
         "v_tarjetas":      f(v.get("tarjetas")),
         "v_cheques":       f(v.get("cheques")),
         "v_transferencias": f(v.get("transferencias")),
+        "v_credito":       f(v.get("credito")),
+        "v_docs_contado":  int(f(v.get("docs_contado"))),
+        "v_docs_credito":  int(f(v.get("docs_credito"))),
 
         # Cobros CXC
         "c_docs":           int(f(c.get("docs"))),
@@ -129,12 +149,13 @@ def get_cierre_caja(fecha: str) -> dict:
         "c_cheques":        f(c.get("cheques")),
         "c_transferencias": f(c.get("transferencias")),
 
-        # Totales consolidados por forma de pago
-        "total_efectivo":       f(v.get("efectivo"))      + f(c.get("efectivo")),
-        "total_tarjetas":       f(v.get("tarjetas"))      + f(c.get("tarjetas")),
-        "total_cheques":        f(v.get("cheques"))       + f(c.get("cheques")),
-        "total_transferencias": f(v.get("transferencias"))+ f(c.get("transferencias")),
-        "gran_total":           f(v.get("total"))         + f(c.get("total")),
+        # Totales consolidados por forma de pago (solo contado + cobros CXC)
+        "total_efectivo":       f(v.get("efectivo"))       + f(c.get("efectivo")),
+        "total_tarjetas":       f(v.get("tarjetas"))       + f(c.get("tarjetas")),
+        "total_cheques":        f(v.get("cheques"))        + f(c.get("cheques")),
+        "total_transferencias": f(v.get("transferencias")) + f(c.get("transferencias")),
+        "total_cobrado":        f(v.get("total")) - f(v.get("credito")) + f(c.get("total")),
+        "gran_total":           f(v.get("total"))           + f(c.get("total")),
 
         # CAJAS_TRANS
         "trans_entradas": entradas,

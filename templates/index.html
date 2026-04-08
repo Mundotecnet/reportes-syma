@@ -3835,10 +3835,11 @@ async function cargarCierreCaja() {
   const d = await fetch(`/api/cierre-caja?fecha=${fecha}`).then(r => r.json());
 
   const filas = [
-    { label:'💵 Efectivo',      v: d.v_efectivo,      c: d.c_efectivo,      t: d.total_efectivo },
-    { label:'💳 Tarjeta',       v: d.v_tarjetas,      c: d.c_tarjetas,      t: d.total_tarjetas },
-    { label:'🏦 Transferencia / SINPE', v: d.v_transferencias, c: d.c_transferencias, t: d.total_transferencias },
-    { label:'📄 Cheque',        v: d.v_cheques,       c: d.c_cheques,       t: d.total_cheques },
+    { label:'💵 Efectivo',             v: d.v_efectivo,       c: d.c_efectivo,       t: d.total_efectivo },
+    { label:'💳 Tarjeta',              v: d.v_tarjetas,       c: d.c_tarjetas,       t: d.total_tarjetas },
+    { label:'🏦 Transferencia / SINPE',v: d.v_transferencias, c: d.c_transferencias, t: d.total_transferencias },
+    { label:'📄 Cheque',               v: d.v_cheques,        c: d.c_cheques,        t: d.total_cheques },
+    { label:'🔖 Crédito (pendiente cobro)', v: d.v_credito,   c: 0,                  t: d.v_credito, esCredito: true },
   ];
 
   const hayData = d.v_docs > 0 || d.c_docs > 0;
@@ -3851,20 +3852,28 @@ async function cargarCierreCaja() {
   // Filas por forma de pago
   let tbody = '';
   filas.forEach((f, i) => {
-    const bg = i % 2 === 0 ? '#fff' : '#f9f9f9';
+    const bg      = f.esCredito ? '#fff8e1' : (i % 2 === 0 ? '#fff' : '#f9f9f9');
+    const color   = f.esCredito ? 'color:#e65100' : '';
+    const celdaC  = f.esCredito ? '<span style="color:#ccc">—</span>' : (f.c > 0 ? crc(f.c) : '<span style="color:#ccc">—</span>');
     tbody += `<tr style="background:${bg}">
-      <td style="padding:10px;font-weight:600">${f.label}</td>
-      <td style="text-align:right;padding:10px">${f.v > 0 ? crc(f.v) : '<span style="color:#ccc">—</span>'}</td>
-      <td style="text-align:right;padding:10px">${f.c > 0 ? crc(f.c) : '<span style="color:#ccc">—</span>'}</td>
-      <td style="text-align:right;padding:10px;font-weight:700;font-size:1.05em">${f.t > 0 ? crc(f.t) : '<span style="color:#ccc">—</span>'}</td>
+      <td style="padding:10px;font-weight:600;${color}">${f.label}</td>
+      <td style="text-align:right;padding:10px;${color}">${f.v > 0 ? crc(f.v) : '<span style="color:#ccc">—</span>'}</td>
+      <td style="text-align:right;padding:10px">${celdaC}</td>
+      <td style="text-align:right;padding:10px;font-weight:700;font-size:1.05em;${color}">${f.t > 0 ? crc(f.t) : '<span style="color:#ccc">—</span>'}</td>
     </tr>`;
   });
   document.getElementById('cc-tbody').innerHTML = tbody;
 
-  // Fila de totales
+  // Fila de totales — separar cobrado real vs crédito
   document.getElementById('cc-tfoot').innerHTML = `
-    <tr style="background:#1E4E8C;color:#fff;font-weight:700;font-size:1.1em">
-      <td style="padding:12px">TOTAL</td>
+    <tr style="background:#e8f5e9;color:#2e7d32;font-weight:700">
+      <td style="padding:10px">✅ Total cobrado hoy</td>
+      <td style="text-align:right;padding:10px">${crc(d.v_total - d.v_credito)} <small style="opacity:.7">(${d.v_docs_contado} contado)</small></td>
+      <td style="text-align:right;padding:10px">${crc(d.c_total)} <small style="opacity:.7">(${d.c_docs} cobros)</small></td>
+      <td style="text-align:right;padding:10px;font-size:1.1em">${crc(d.total_cobrado)}</td>
+    </tr>
+    <tr style="background:#1E4E8C;color:#fff;font-weight:700;font-size:1.05em">
+      <td style="padding:12px">📋 Total facturado (incl. crédito)</td>
       <td style="text-align:right;padding:12px">${crc(d.v_total)} <small style="opacity:.7">(${d.v_docs} docs)</small></td>
       <td style="text-align:right;padding:12px">${crc(d.c_total)} <small style="opacity:.7">(${d.c_docs} cobros)</small></td>
       <td style="text-align:right;padding:12px;font-size:1.15em">${crc(d.gran_total)}</td>
@@ -3888,9 +3897,13 @@ async function cargarCierreCaja() {
       <div class="metric-val" style="color:#e67e22">${crc(d.total_cheques)}</div>
       <div class="metric-lbl">Cheques</div>
     </div>
-    <div class="metric-card" style="border-top:3px solid #1E4E8C">
-      <div class="metric-val" style="color:#1E4E8C;font-size:1.4em">${crc(d.gran_total)}</div>
-      <div class="metric-lbl">Gran Total del día</div>
+    <div class="metric-card" style="border-top:3px solid #e65100">
+      <div class="metric-val" style="color:#e65100">${crc(d.v_credito)}</div>
+      <div class="metric-lbl">Crédito (pendiente cobro) <small style="color:#aaa">(${d.v_docs_credito} docs)</small></div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #2e7d32">
+      <div class="metric-val" style="color:#2e7d32;font-size:1.4em">${crc(d.total_cobrado)}</div>
+      <div class="metric-lbl">✅ Total cobrado hoy</div>
     </div>`;
 
   // ── Detalle ventas ────────────────────────────────────────────────────────
