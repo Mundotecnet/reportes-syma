@@ -26,7 +26,12 @@ from reportes.caja_chica         import (init_db as cc_init, get_caja_chica,
                                           get_caja_chica_rango, crear_movimiento,
                                           actualizar_foto, eliminar_movimiento,
                                           get_total_dia, FOTO_DIR)
-cc_init()   # asegura que exista el directorio static/caja_chica (tabla M_CAJA_CHICA en SQL Server)
+from reportes.depositos          import (init_depositos, get_depositos, crear_deposito,
+                                          actualizar_foto_deposito, eliminar_deposito,
+                                          get_resumen_control_efectivo,
+                                          FOTO_DIR as DEP_FOTO_DIR)
+cc_init()        # asegura que exista el directorio static/caja_chica (tabla M_CAJA_CHICA en SQL Server)
+init_depositos() # asegura que exista el directorio static/depositos (tabla M_DEPOSITOS en SQL Server)
 from reportes.taller             import get_taller, get_detalle_taller, get_siguiente_no_orden, buscar_clientes, get_agenda_dia, get_agenda_mes, get_ordenes_antiguas, get_servicios_st003, crear_orden, get_orden_completa, mover_orden, reordenar_dia
 from reportes.ordenes_compra     import get_siguiente_no_oc, crear_oc, get_historial_oc, get_oc, actualizar_estado_oc, eliminar_oc
 from reportes.permisos           import get_modulos_usuario, get_roles, get_modulos_rol, get_usuarios_con_rol, asignar_rol_usuario, actualizar_modulos_rol, crear_rol, MODULOS_TODOS
@@ -199,6 +204,49 @@ async def api_eliminar_movimiento(mov_id: int):
 async def api_total_dia(fecha: str = Query("")):
     from datetime import date as dt
     return {"total": get_total_dia(fecha or dt.today().isoformat())}
+
+# ── DEPÓSITOS / CONTROL EFECTIVO ─────────────────────────────────────────────
+@app.get("/api/depositos")
+async def api_get_depositos(fecha_ini: str = Query(""), fecha_fin: str = Query("")):
+    from datetime import date as dt
+    hoy = dt.today().isoformat()
+    ini = fecha_ini or hoy[:7] + "-01"   # primer día del mes actual
+    fin = fecha_fin or hoy
+    return get_depositos(ini, fin)
+
+@app.post("/api/depositos")
+async def api_crear_deposito(
+        fecha:   str        = Form(...),
+        banco:   str        = Form(...),
+        monto:   float      = Form(...),
+        notas:   str        = Form(""),
+        foto:    UploadFile = File(None),
+        request: Request    = None):
+    usuario = request.session.get("usuario", "") if request else ""
+    dep = crear_deposito(fecha, banco, monto, notas, usuario)
+    if foto and foto.filename:
+        ext      = os.path.splitext(foto.filename)[1].lower()
+        nombre   = f"dep_{dep['id']}{ext}"
+        ruta_abs = os.path.join(DEP_FOTO_DIR, nombre)
+        with open(ruta_abs, "wb") as f:
+            f.write(await foto.read())
+        foto_rel = f"/static/depositos/{nombre}"
+        actualizar_foto_deposito(dep["id"], foto_rel)
+        dep["foto_path"] = foto_rel
+    return dep
+
+@app.delete("/api/depositos/{dep_id}")
+async def api_eliminar_deposito(dep_id: int):
+    eliminar_deposito(dep_id)
+    return {"ok": True}
+
+@app.get("/api/control-efectivo")
+async def api_control_efectivo(fecha_ini: str = Query(""), fecha_fin: str = Query("")):
+    from datetime import date as dt
+    hoy = dt.today().isoformat()
+    ini = fecha_ini or hoy[:7] + "-01"
+    fin = fecha_fin or hoy
+    return get_resumen_control_efectivo(ini, fin)
 
 @app.get("/api/facturas-proceso")
 async def facturas_proceso(fecha_ini: str = Query(""), fecha_fin: str = Query(""),

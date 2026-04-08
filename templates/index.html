@@ -159,6 +159,108 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
     <div id="cc2-empty" style="display:none;text-align:center;color:#aaa;padding:30px">Sin gastos registrados para esta fecha.</div>
   </div>
 
+  <!-- ══ CONTROL DE EFECTIVO / DEPÓSITOS ══ -->
+  <div id="tab-depositos" class="panel">
+
+    <!-- Filtro de período -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:16px">
+      <div class="fi"><label>Desde</label><input type="date" id="dep-fi"></div>
+      <div class="fi"><label>Hasta</label><input type="date" id="dep-ff"></div>
+      <button class="btn-run" onclick="cargarControlEfectivo()">Consultar</button>
+    </div>
+
+    <!-- Métricas -->
+    <div id="dep-metricas" style="display:none;margin-bottom:20px">
+      <div class="metrics">
+        <div class="metric-card" style="border-top:3px solid #27ae60">
+          <div class="metric-val" style="color:#27ae60" id="dep-m-neto">₡0</div>
+          <div class="metric-lbl">Efectivo acumulado del período</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #2980b9">
+          <div class="metric-val" style="color:#2980b9" id="dep-m-depositos">₡0</div>
+          <div class="metric-lbl">Total depositado</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #e67e22">
+          <div class="metric-val" style="color:#e67e22" id="dep-m-saldo">₡0</div>
+          <div class="metric-lbl">💰 Saldo en caja</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #c0392b">
+          <div class="metric-val" style="color:#c0392b" id="dep-m-cc">₡0</div>
+          <div class="metric-lbl">Total caja chica</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla resumen diario -->
+    <div class="tcard" id="dep-tabla-wrap" style="display:none;margin-bottom:24px">
+      <h3 style="margin-bottom:10px;font-size:14px;color:#1E4E8C">📅 Resumen diario</h3>
+      <table style="width:100%;font-size:12px">
+        <thead>
+          <tr style="background:#1E4E8C;color:#fff">
+            <th style="padding:8px;text-align:left">Fecha</th>
+            <th style="padding:8px;text-align:right">Ef. Ventas</th>
+            <th style="padding:8px;text-align:right">Cobros CXC</th>
+            <th style="padding:8px;text-align:right">Caja Chica</th>
+            <th style="padding:8px;text-align:right;font-weight:700">Neto día</th>
+            <th style="padding:8px;text-align:right;color:#acd">Depósito</th>
+            <th style="padding:8px;text-align:right;color:#ffd">Saldo</th>
+          </tr>
+        </thead>
+        <tbody id="dep-tbody"></tbody>
+        <tfoot id="dep-tfoot"></tfoot>
+      </table>
+    </div>
+
+    <!-- Registrar depósito -->
+    <div class="fcard" style="margin-bottom:20px">
+      <h3 style="margin-bottom:12px">🏦 Registrar depósito</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+        <div class="fi">
+          <label>Fecha</label>
+          <input type="date" id="dep-reg-fecha">
+        </div>
+        <div class="fi" style="flex:1;min-width:180px">
+          <label>Banco</label>
+          <input type="text" id="dep-reg-banco" placeholder="Ej: BCR, BAC, Nacional...">
+        </div>
+        <div class="fi">
+          <label>Monto (₡)</label>
+          <input type="number" id="dep-reg-monto" min="0" step="1" style="width:140px" placeholder="0">
+        </div>
+        <div class="fi" style="flex:1;min-width:150px">
+          <label>Notas</label>
+          <input type="text" id="dep-reg-notas" placeholder="Referencia, boleta...">
+        </div>
+        <div class="fi">
+          <label>Foto comprobante</label>
+          <input type="file" id="dep-reg-foto" accept="image/*,application/pdf" style="font-size:12px">
+        </div>
+        <button class="btn-run" onclick="registrarDeposito()">Guardar</button>
+      </div>
+      <div id="dep-reg-msg" style="margin-top:8px;font-size:12px;display:none"></div>
+    </div>
+
+    <!-- Lista de depósitos del período -->
+    <div class="tcard" id="dep-lista-wrap" style="display:none">
+      <h3 style="margin-bottom:10px;font-size:14px;color:#1E4E8C">🏦 Depósitos registrados</h3>
+      <table style="width:100%;font-size:12px">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Banco</th>
+            <th>Notas</th>
+            <th class="r">Monto</th>
+            <th style="text-align:center">Foto</th>
+            <th style="text-align:center">Eliminar</th>
+          </tr>
+        </thead>
+        <tbody id="dep-lista-tbody"></tbody>
+        <tfoot id="dep-lista-tfoot"></tfoot>
+      </table>
+    </div>
+    <div id="dep-empty" style="display:none;text-align:center;color:#aaa;padding:40px;font-size:1.1em">Sin movimientos para este período.</div>
+  </div>
+
   <!-- Modal foto -->
   <div id="cc2-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center" onclick="this.style.display='none'">
     <img id="cc2-modal-img" style="max-width:90vw;max-height:90vh;border-radius:8px">
@@ -1697,7 +1799,7 @@ const GRUPOS_NAV = {
   compras:     { label:'🛒 Compras',    tabs:['compras','cxp','cal-pagos'] },
   inventario:  { label:'📦 Inventario', tabs:['inv-ajustes','hist-ajustes'] },
   taller:      { label:'🔧 Taller',     tabs:['taller','st003','ingreso-taller','agenda-taller','orden-compra'] },
-  caja:        { label:'🏦 Caja/Banco', tabs:['cierre-caja','caja-chica'] },
+  caja:        { label:'🏦 Caja/Banco', tabs:['cierre-caja','caja-chica','depositos'] },
   admin:       { label:'⚙ Admin',       tabs:['admin'] },
 };
 const TAB_LABELS = {
@@ -1708,7 +1810,7 @@ const TAB_LABELS = {
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
   'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
-  'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', admin:'Usuarios y Permisos'
+  'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', depositos:'Control Efectivo', admin:'Usuarios y Permisos'
 };
 
 let _grupoActivo = 'ventas';
@@ -1765,6 +1867,7 @@ function showTab(name) {
   if (name === 'cal-pagos')      { _cpVista='semana'; initCalPagos(); }
   if (name === 'cierre-caja')    cargarCierreCaja();
   if (name === 'caja-chica')     cargarCajaChica();
+  if (name === 'depositos')      cargarControlEfectivo();
   if (name === 'cxp')            initCxP();
   if (name === 'admin')          initAdmin();
 }
@@ -3982,6 +4085,157 @@ async function eliminarCC(id) {
 }
 
 // ══════════════════════════════════════════════════════
+//  CONTROL DE EFECTIVO / DEPÓSITOS
+// ══════════════════════════════════════════════════════
+function _depFechasPorDefecto() {
+  const hoy = new Date();
+  const fi  = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+  const ff  = hoy.toISOString().split('T')[0];
+  const elFi = document.getElementById('dep-fi');
+  const elFf = document.getElementById('dep-ff');
+  const elReg = document.getElementById('dep-reg-fecha');
+  if (!elFi.value) elFi.value = fi;
+  if (!elFf.value) elFf.value = ff;
+  if (!elReg.value) elReg.value = ff;
+}
+
+async function cargarControlEfectivo() {
+  _depFechasPorDefecto();
+  const fi = document.getElementById('dep-fi').value;
+  const ff = document.getElementById('dep-ff').value;
+  if (!fi || !ff) return;
+
+  ['dep-tabla-wrap','dep-lista-wrap','dep-empty','dep-metricas'].forEach(id =>
+    document.getElementById(id).style.display = 'none');
+
+  const data = await fetch(`/api/control-efectivo?fecha_ini=${fi}&fecha_fin=${ff}`).then(r=>r.json());
+
+  const hayMovs = (data.dias && data.dias.length) || (data.depositos && data.depositos.length);
+  if (!hayMovs) {
+    document.getElementById('dep-empty').style.display = 'block';
+    return;
+  }
+
+  // ── Métricas ─────────────────────────────────────────────────────────────
+  document.getElementById('dep-metricas').style.display = 'block';
+  document.getElementById('dep-m-neto').textContent      = crc(data.total_neto      || 0);
+  document.getElementById('dep-m-depositos').textContent = crc(data.total_depositos || 0);
+  document.getElementById('dep-m-saldo').textContent     = crc(data.saldo_final     || 0);
+  document.getElementById('dep-m-cc').textContent        = crc(data.total_caja_chica|| 0);
+
+  // Colorear saldo según positivo/negativo
+  const saldoEl = document.getElementById('dep-m-saldo');
+  saldoEl.style.color = (data.saldo_final || 0) >= 0 ? '#e67e22' : '#c0392b';
+
+  // ── Tabla resumen diario ──────────────────────────────────────────────────
+  if (data.dias && data.dias.length) {
+    let html = '';
+    data.dias.forEach((d, i) => {
+      const bg = i % 2 === 0 ? '#fff' : '#f9f9f9';
+      const saldoColor = d.saldo >= 0 ? '#27ae60' : '#c0392b';
+      const depCol = d.deposito > 0
+        ? `<span style="color:#2980b9;font-weight:600">${crc(d.deposito)}</span>`
+        : '<span style="color:#ddd">—</span>';
+      html += `<tr style="background:${bg}">
+        <td style="padding:7px 10px;font-size:12px">${d.fecha}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px">${crc(d.ef_ventas)}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px">${crc(d.ef_cobros)}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px;color:#c0392b">${d.caja_chica > 0 ? '−'+crc(d.caja_chica) : '—'}</td>
+        <td style="padding:7px 10px;text-align:right;font-weight:700;font-size:12px">${crc(d.neto)}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px">${depCol}</td>
+        <td style="padding:7px 10px;text-align:right;font-weight:700;font-size:12px;color:${saldoColor}">${crc(d.saldo)}</td>
+      </tr>`;
+    });
+    document.getElementById('dep-tbody').innerHTML = html;
+    document.getElementById('dep-tfoot').innerHTML = `
+      <tr style="background:#1E4E8C;color:#fff;font-weight:700">
+        <td style="padding:8px 10px">TOTAL</td>
+        <td style="padding:8px 10px;text-align:right">${crc(data.total_ef_ventas)}</td>
+        <td style="padding:8px 10px;text-align:right">${crc(data.total_ef_cobros)}</td>
+        <td style="padding:8px 10px;text-align:right">−${crc(data.total_caja_chica)}</td>
+        <td style="padding:8px 10px;text-align:right">${crc(data.total_neto)}</td>
+        <td style="padding:8px 10px;text-align:right">${crc(data.total_depositos)}</td>
+        <td style="padding:8px 10px;text-align:right">${crc(data.saldo_final)}</td>
+      </tr>`;
+    document.getElementById('dep-tabla-wrap').style.display = 'block';
+  }
+
+  // ── Lista de depósitos ────────────────────────────────────────────────────
+  if (data.depositos && data.depositos.length) {
+    let html = '';
+    let totalDep = 0;
+    data.depositos.forEach((d, i) => {
+      totalDep += d.monto;
+      const bg = i % 2 === 0 ? '#fff' : '#f9f9f9';
+      const fotoBtn = d.foto_path
+        ? `<button onclick="verFoto('${d.foto_path}')" style="padding:3px 8px;border:1px solid #2980b9;border-radius:4px;background:#fff;color:#2980b9;cursor:pointer;font-size:11px">📷 Ver</button>`
+        : '<span style="color:#ccc;font-size:11px">—</span>';
+      html += `<tr style="background:${bg}">
+        <td style="padding:8px">${d.fecha}</td>
+        <td style="padding:8px;font-weight:600">${d.banco}</td>
+        <td style="padding:8px;font-size:11px;color:#666">${d.notas || '—'}</td>
+        <td style="padding:8px;text-align:right;font-weight:600;color:#2980b9">${crc(d.monto)}</td>
+        <td style="padding:8px;text-align:center">${fotoBtn}</td>
+        <td style="padding:8px;text-align:center">
+          <button onclick="eliminarDeposito(${d.id})" style="padding:3px 8px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:11px">🗑</button>
+        </td>
+      </tr>`;
+    });
+    document.getElementById('dep-lista-tbody').innerHTML = html;
+    document.getElementById('dep-lista-tfoot').innerHTML = `
+      <tr style="background:#eaf4fb;font-weight:700;color:#2980b9">
+        <td colspan="3" style="padding:8px">TOTAL DEPOSITADO</td>
+        <td style="padding:8px;text-align:right">${crc(totalDep)}</td>
+        <td colspan="2"></td>
+      </tr>`;
+    document.getElementById('dep-lista-wrap').style.display = 'block';
+  }
+}
+
+async function registrarDeposito() {
+  const fecha  = document.getElementById('dep-reg-fecha').value;
+  const banco  = document.getElementById('dep-reg-banco').value.trim();
+  const monto  = parseFloat(document.getElementById('dep-reg-monto').value);
+  const notas  = document.getElementById('dep-reg-notas').value.trim();
+  const foto   = document.getElementById('dep-reg-foto').files[0];
+  const msg    = document.getElementById('dep-reg-msg');
+
+  if (!fecha || !banco || !monto || monto <= 0) {
+    msg.textContent = '⚠ Completá fecha, banco y monto.';
+    msg.style.color = '#c0392b'; msg.style.display = 'block';
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('fecha',  fecha);
+  fd.append('banco',  banco);
+  fd.append('monto',  monto);
+  fd.append('notas',  notas);
+  if (foto) fd.append('foto', foto);
+
+  const res = await fetch('/api/depositos', { method:'POST', body: fd });
+  if (res.ok) {
+    msg.textContent = '✅ Depósito registrado.';
+    msg.style.color = '#27ae60'; msg.style.display = 'block';
+    document.getElementById('dep-reg-banco').value = '';
+    document.getElementById('dep-reg-monto').value = '';
+    document.getElementById('dep-reg-notas').value = '';
+    document.getElementById('dep-reg-foto').value  = '';
+    cargarControlEfectivo();
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+  } else {
+    msg.textContent = '❌ Error al guardar.';
+    msg.style.color = '#c0392b'; msg.style.display = 'block';
+  }
+}
+
+async function eliminarDeposito(id) {
+  if (!confirm('¿Eliminar este depósito?')) return;
+  await fetch(`/api/depositos/${id}`, { method:'DELETE' });
+  cargarControlEfectivo();
+}
+
+// ══════════════════════════════════════════════════════
 //  CIERRE DE CAJA
 // ══════════════════════════════════════════════════════
 function ccHoy() {
@@ -5590,12 +5844,12 @@ const MODULO_LABELS = {
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
   'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
-  'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', admin:'Admin'
+  'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', depositos:'Control Efectivo', admin:'Admin'
 };
 const MODULOS_ORDEN = ['dashboard','ventas','pagos','productos','cxc','cv','fproceso',
   'compras','cxp','cal-pagos',
   'inv-ajustes','hist-ajustes','taller','st003','ingreso-taller',
-  'agenda-taller','orden-compra','cierre-caja','caja-chica','admin'];
+  'agenda-taller','orden-compra','cierre-caja','caja-chica','depositos','admin'];
 
 let _admRoles = [], _admRolSelId = null;
 
