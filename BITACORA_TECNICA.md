@@ -3,7 +3,7 @@
 **Servidor:** Ubuntu 192.168.88.250:8000
 **Ruta local:** `/Users/lroot/Downloads/reportes-syma`
 **Ruta servidor:** `/home/lroot/reportes-syma`
-**Última actualización:** 2026-04-04
+**Última actualización:** 2026-04-07
 
 ---
 
@@ -41,12 +41,13 @@
 | **Ingreso Taller** | `ingreso-taller` | Creación de nuevas órdenes de servicio |
 | **Agenda Taller** | `agenda-taller` | Calendario mensual/semanal/diario + backlog drag&drop |
 | Orden Compra | `orden-compra` | Gestión de órdenes de compra internas |
+| **Facturas en Proceso** | `fproceso` | Facturas ESTADO='P' con detalle expandible, seriales y resumen acumulado por producto |
 | Admin | `admin` | Gestión de roles y permisos por módulo |
 
 ### Orden de tabs en navegación
 ```
 📊 Dashboard:  dashboard
-💰 Ventas:     ventas → pagos → productos → cxc → cv
+💰 Ventas:     ventas → pagos → productos → cxc → cv → fproceso
 🛒 Compras:    compras → cxp → cal-pagos
 📦 Inventario: inv-ajustes → hist-ajustes
 🔧 Taller:     taller → st003 → ingreso-taller → agenda-taller → orden-compra
@@ -170,6 +171,8 @@ sshpass -p '87060002' ssh lroot@192.168.88.250 "sudo journalctl -u reportes.serv
 | `ETransac` | Transacciones CXC (ID_CONCEPTO='02', STATUS='A'). **OJO:** usar `Clientes.SALDO` para totales CXC, no `ETransac.SALDO_DOC` (ETransac tiene facturas históricas duplicadas) |
 | `ETransacP` | Transacciones CXP (ID_CONCEPTO='01', STATUS='A', SALDO_DOC>0) |
 | `COMPRAS` | Facturas de proveedores. ID_MONEDA: 'CRC' o 'USD'. PROVEEDOR_ID=178 = IT SERVICE S.A. |
+| `PUNTO_VENTA` | Estados: 'A'=Activa, 'P'=En Proceso (120 docs), 'C'=Cancelada |
+| `PUNTO_VENTA_DETALLE` | Columna `SERIES` = serial del producto (puede ser NULL). NO tiene columna `LINEA`, ordenar por `ID_CP` |
 
 ### ORDEN_SERVICIO — columnas importantes
 | Columna | Descripción |
@@ -218,6 +221,8 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 |-------|-----------|
 | 2026-04-01 11:29 | `reportes-syma-backup-20260401-112936` |
 | 2026-04-01 12:27 | `reportes-syma-backup-20260401-122711` |
+| 2026-04-07 11:01 | `reportes-syma-backup-20260407-110123` |
+| 2026-04-07 19:26 | `reportes-syma-backup-20260407-192602` |
 
 > A partir de v1.0.0 el control de versiones se maneja con **Git** (ver protocolo arriba).
 
@@ -233,6 +238,7 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 6. **CXC saldo correcto** — Siempre usar `Clientes.SALDO` (118 clientes ≈ ₡10.5M). `ETransac.SALDO_DOC` devuelve 4x más porque incluye transacciones históricas. Confirmado contra reporte Excel de Syma.
 7. **IT SERVICE PROVEEDOR_ID=178** — `IT SERVICE SOCIEDAD ANONIMA`. Excluir de Compras y CXP con checkbox. En Dashboard CXP es exclusión permanente por parámetro `excluir_itservice`.
 8. **Monedas en Dashboard** — Ventas: `PUNTO_VENTA.ID_MONEDA`. CXC: `Clientes.ID_MONEDA`. CXP: `ETransacP.ID_MONEDA`. Detectar USD con `RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'`.
+9. **PUNTO_VENTA_DETALLE sin LINEA** — No existe columna `LINEA`. Usar `ID_CP` para ordenar líneas de detalle.
 
 ---
 
@@ -292,6 +298,16 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 | 23 | Nuevo | Saldo CXC en dashboard separado en colones y dólares | `reportes/dashboard.py`, `index.html` |
 | 24 | Fix | **CXC dashboard incorrecto**: usaba `ETransac.SALDO_DOC` (₡44.6M / 412 facturas) en lugar de `Clientes.SALDO` (₡10.5M / 118 clientes). Auditado contra Excel de Syma. Corregido a `FROM Clientes WHERE ESTADO='A' AND SALDO>0` | `reportes/dashboard.py`, `index.html` |
 | 25 | Fix | `usd()` formatter no estaba en scope global. Movido junto a `crc()` en línea 1372 para que `cargarDashboard()` pueda usarlo | `index.html` |
+
+### [SESIÓN 5] Tab Facturas en Proceso
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 26 | Nuevo | Tab `fproceso` en grupo Ventas. Lista facturas `PUNTO_VENTA.ESTADO='P'` con filtros fecha y búsqueda. Endpoint `GET /api/facturas-proceso` | `reportes/facturas_proceso.py`, `main.py`, `permisos.py`, `index.html` |
+| 27 | Nuevo | Detalle expandible por factura (clic en fila): líneas con código, descripción, cantidad, precio, importe, IVA, total | `index.html` |
+| 28 | Nuevo | Serial por línea de detalle: muestra etiqueta naranja `📋 SERIAL` si `PUNTO_VENTA_DETALLE.SERIES` tiene valor | `reportes/facturas_proceso.py`, `index.html` |
+| 29 | Nuevo | Resumen acumulado por producto al pie del reporte: agrupa todas las líneas, ordena por total DESC, muestra N° documentos donde aparece cada producto como chips azules | `index.html` |
+| 30 | Fix | `ORDER BY pvd.LINEA` fallaba — columna inexistente. Corregido a `ORDER BY pvd.ID_CP` | `reportes/facturas_proceso.py` |
 
 ---
 *Actualizar esta bitácora al cierre de cada sesión con `"cierra la sesión"`*
