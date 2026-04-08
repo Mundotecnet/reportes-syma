@@ -93,6 +93,55 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
   <div class="nav-subtabs" id="nav-subtabs"></div>
 
   <!-- ══════════ DASHBOARD ══════════ -->
+  <!-- ══ CIERRE DE CAJA ══ -->
+  <div id="tab-cierre-caja" class="panel">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:16px">
+      <div class="fi">
+        <label>Fecha</label>
+        <input type="date" id="cc-fecha">
+      </div>
+      <button style="padding:6px 10px;border:1px solid #555;border-radius:6px;background:#fff;cursor:pointer;font-size:18px" onclick="ccDia(-1)" title="Día anterior">◀</button>
+      <button style="padding:6px 10px;border:1px solid #555;border-radius:6px;background:#fff;cursor:pointer;font-size:18px" onclick="ccDia(1)"  title="Día siguiente">▶</button>
+      <button class="btn-run" onclick="cargarCierreCaja()">Generar</button>
+      <button style="padding:6px 14px;border:1px solid #1E4E8C;border-radius:6px;background:#fff;color:#1E4E8C;cursor:pointer;font-size:12px" onclick="ccHoy()">Hoy</button>
+    </div>
+
+    <div id="cc-contenido" style="display:none">
+
+      <!-- Tabla resumen por forma de pago -->
+      <div class="tcard" style="margin-bottom:20px">
+        <table id="cc-tabla" style="width:100%">
+          <thead>
+            <tr style="background:#1E4E8C;color:#fff">
+              <th style="text-align:left;padding:10px">Forma de Pago</th>
+              <th style="text-align:right;padding:10px">Ventas</th>
+              <th style="text-align:right;padding:10px">Cobros CXC</th>
+              <th style="text-align:right;padding:10px;font-size:1.05em">Total día</th>
+            </tr>
+          </thead>
+          <tbody id="cc-tbody"></tbody>
+          <tfoot id="cc-tfoot"></tfoot>
+        </table>
+      </div>
+
+      <!-- Métricas rápidas -->
+      <div class="metrics" id="cc-metrics"></div>
+
+      <!-- Movimientos manuales de caja -->
+      <div id="cc-trans-wrap" style="display:none;margin-top:16px">
+        <div style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Movimientos manuales de caja</div>
+        <div class="tcard">
+          <table style="width:100%">
+            <thead><tr><th>Tipo</th><th>Concepto</th><th>Responsable</th><th class="r">Monto</th></tr></thead>
+            <tbody id="cc-trans-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <div id="cc-empty" style="display:none;text-align:center;color:#aaa;padding:40px;font-size:1.1em">Sin movimientos para esta fecha.</div>
+  </div>
+
   <div id="tab-dashboard" class="panel">
 
     <!-- Filtros período -->
@@ -1458,6 +1507,7 @@ const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().s
 const hoyStr = hoy.toISOString().split('T')[0];
 ['db-fi','v-fi','p-fi','c-fi','pr-fi','ta-fi','ha-fi','st3-fi','fp-fi'].forEach(id => document.getElementById(id).value = primerDia);
 ['db-ff','v-ff','p-ff','c-ff','pr-ff','ta-ff','ha-ff','st3-ff','fp-ff'].forEach(id => document.getElementById(id).value = hoyStr);
+document.getElementById('cc-fecha').value = hoyStr;
 
 
 // Verificar conexión y cargar usuario de sesión
@@ -1470,7 +1520,7 @@ fetch('/api/me').then(r=>r.json()).then(d=>{
   initNav(d.modulos || [
     'dashboard','ventas','pagos','compras','productos','cxc','inventario',
     'inv-ajustes','hist-ajustes','cv','taller','ingreso-taller',
-    'agenda-taller','st003','orden-compra','cxp','fproceso','admin'
+    'agenda-taller','st003','orden-compra','cxp','fproceso','cierre-caja','admin'
   ]);
 });
 
@@ -1520,12 +1570,13 @@ fetch('/api/proveedores').then(r=>r.json()).then(data=>{
 
 // ── Navegación agrupada ───────────────────────────────────────
 const GRUPOS_NAV = {
-  dashboard:  { label:'📊 Dashboard',  tabs:['dashboard'] },
-  ventas:     { label:'💰 Ventas',     tabs:['ventas','pagos','productos','cxc','cv','fproceso'] },
-  compras:    { label:'🛒 Compras',    tabs:['compras','cxp','cal-pagos'] },
-  inventario: { label:'📦 Inventario', tabs:['inv-ajustes','hist-ajustes'] },
-  taller:     { label:'🔧 Taller',     tabs:['taller','st003','ingreso-taller','agenda-taller','orden-compra'] },
-  admin:      { label:'⚙ Admin',       tabs:['admin'] },
+  dashboard:   { label:'📊 Dashboard',  tabs:['dashboard'] },
+  ventas:      { label:'💰 Ventas',     tabs:['ventas','pagos','productos','cxc','cv','fproceso'] },
+  compras:     { label:'🛒 Compras',    tabs:['compras','cxp','cal-pagos'] },
+  inventario:  { label:'📦 Inventario', tabs:['inv-ajustes','hist-ajustes'] },
+  taller:      { label:'🔧 Taller',     tabs:['taller','st003','ingreso-taller','agenda-taller','orden-compra'] },
+  caja:        { label:'🏦 Caja/Banco', tabs:['cierre-caja'] },
+  admin:       { label:'⚙ Admin',       tabs:['admin'] },
 };
 const TAB_LABELS = {
   dashboard:'Dashboard',
@@ -1534,7 +1585,8 @@ const TAB_LABELS = {
   inventario:'Inventario', 'inv-ajustes':'Inv. Ajustes', 'hist-ajustes':'Historial Ajustes',
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
-  'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso', admin:'Usuarios y Permisos'
+  'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
+  'cierre-caja':'Cierre de Caja', admin:'Usuarios y Permisos'
 };
 
 let _grupoActivo = 'ventas';
@@ -1589,6 +1641,7 @@ function showTab(name) {
   if (name === 'agenda-taller')  initAgendaTaller();
   if (name === 'orden-compra')   initOrdenCompra();
   if (name === 'cal-pagos')      { _cpVista='semana'; initCalPagos(); }
+  if (name === 'cierre-caja')    cargarCierreCaja();
   if (name === 'cxp')            initCxP();
   if (name === 'admin')          initAdmin();
 }
@@ -3705,6 +3758,112 @@ function dashPeriodo(tipo) {
   cargarDashboard();
 }
 
+// ══════════════════════════════════════════════════════
+//  CIERRE DE CAJA
+// ══════════════════════════════════════════════════════
+function ccHoy() {
+  document.getElementById('cc-fecha').value = new Date().toISOString().split('T')[0];
+  cargarCierreCaja();
+}
+function ccDia(delta) {
+  const el = document.getElementById('cc-fecha');
+  const d  = new Date(el.value + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  el.value = d.toISOString().split('T')[0];
+  cargarCierreCaja();
+}
+
+async function cargarCierreCaja() {
+  const fecha = document.getElementById('cc-fecha').value;
+  if (!fecha) return;
+
+  document.getElementById('cc-contenido').style.display = 'none';
+  document.getElementById('cc-empty').style.display     = 'none';
+  document.getElementById('cc-tbody').innerHTML =
+    '<tr><td colspan="4" class="loading">Cargando...</td></tr>';
+  document.getElementById('cc-contenido').style.display = 'block';
+
+  const d = await fetch(`/api/cierre-caja?fecha=${fecha}`).then(r => r.json());
+
+  const filas = [
+    { label:'💵 Efectivo',      v: d.v_efectivo,      c: d.c_efectivo,      t: d.total_efectivo },
+    { label:'💳 Tarjeta',       v: d.v_tarjetas,      c: d.c_tarjetas,      t: d.total_tarjetas },
+    { label:'🏦 Transferencia / SINPE', v: d.v_transferencias, c: d.c_transferencias, t: d.total_transferencias },
+    { label:'📄 Cheque',        v: d.v_cheques,       c: d.c_cheques,       t: d.total_cheques },
+  ];
+
+  const hayData = d.v_docs > 0 || d.c_docs > 0;
+  if (!hayData) {
+    document.getElementById('cc-contenido').style.display = 'none';
+    document.getElementById('cc-empty').style.display     = 'block';
+    return;
+  }
+
+  // Filas por forma de pago
+  let tbody = '';
+  filas.forEach((f, i) => {
+    const bg = i % 2 === 0 ? '#fff' : '#f9f9f9';
+    tbody += `<tr style="background:${bg}">
+      <td style="padding:10px;font-weight:600">${f.label}</td>
+      <td style="text-align:right;padding:10px">${f.v > 0 ? crc(f.v) : '<span style="color:#ccc">—</span>'}</td>
+      <td style="text-align:right;padding:10px">${f.c > 0 ? crc(f.c) : '<span style="color:#ccc">—</span>'}</td>
+      <td style="text-align:right;padding:10px;font-weight:700;font-size:1.05em">${f.t > 0 ? crc(f.t) : '<span style="color:#ccc">—</span>'}</td>
+    </tr>`;
+  });
+  document.getElementById('cc-tbody').innerHTML = tbody;
+
+  // Fila de totales
+  document.getElementById('cc-tfoot').innerHTML = `
+    <tr style="background:#1E4E8C;color:#fff;font-weight:700;font-size:1.1em">
+      <td style="padding:12px">TOTAL</td>
+      <td style="text-align:right;padding:12px">${crc(d.v_total)} <small style="opacity:.7">(${d.v_docs} docs)</small></td>
+      <td style="text-align:right;padding:12px">${crc(d.c_total)} <small style="opacity:.7">(${d.c_docs} cobros)</small></td>
+      <td style="text-align:right;padding:12px;font-size:1.15em">${crc(d.gran_total)}</td>
+    </tr>`;
+
+  // Métricas rápidas
+  document.getElementById('cc-metrics').innerHTML = `
+    <div class="metric-card" style="border-top:3px solid #27ae60">
+      <div class="metric-val" style="color:#27ae60">${crc(d.total_efectivo)}</div>
+      <div class="metric-lbl">Efectivo del día</div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #2980b9">
+      <div class="metric-val" style="color:#2980b9">${crc(d.total_tarjetas)}</div>
+      <div class="metric-lbl">Tarjetas</div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #8e44ad">
+      <div class="metric-val" style="color:#8e44ad">${crc(d.total_transferencias)}</div>
+      <div class="metric-lbl">Transferencia / SINPE</div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #e67e22">
+      <div class="metric-val" style="color:#e67e22">${crc(d.total_cheques)}</div>
+      <div class="metric-lbl">Cheques</div>
+    </div>
+    <div class="metric-card" style="border-top:3px solid #1E4E8C">
+      <div class="metric-val" style="color:#1E4E8C;font-size:1.4em">${crc(d.gran_total)}</div>
+      <div class="metric-lbl">Gran Total del día</div>
+    </div>`;
+
+  // Movimientos manuales de caja
+  const transWrap = document.getElementById('cc-trans-wrap');
+  if (d.trans_detalle && d.trans_detalle.length) {
+    let th = d.trans_detalle.map(t => `<tr>
+      <td style="padding:6px">${t.tipo === 'E' ? '🟢 Entrada' : '🔴 Salida'}</td>
+      <td style="padding:6px">${t.concepto}</td>
+      <td style="padding:6px;color:#555">${t.responsable}</td>
+      <td style="text-align:right;padding:6px">${crc(t.monto)}</td>
+    </tr>`).join('');
+    th += `<tr style="font-weight:700;background:#f5f5f5">
+      <td colspan="3" style="padding:6px">Entradas: ${crc(d.trans_entradas)} / Salidas: ${crc(d.trans_salidas)}</td>
+      <td style="text-align:right;padding:6px">${crc(d.trans_entradas - d.trans_salidas)}</td>
+    </tr>`;
+    document.getElementById('cc-trans-tbody').innerHTML = th;
+    transWrap.style.display = 'block';
+  } else {
+    transWrap.style.display = 'none';
+  }
+}
+
 async function cargarDashboard() {
   const fi = document.getElementById('db-fi').value;
   const ff = document.getElementById('db-ff').value;
@@ -5132,12 +5291,13 @@ const MODULO_LABELS = {
   dashboard:'Dashboard',
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
-  'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso', admin:'Admin'
+  'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
+  'cierre-caja':'Cierre de Caja', admin:'Admin'
 };
 const MODULOS_ORDEN = ['dashboard','ventas','pagos','productos','cxc','cv','fproceso',
   'compras','cxp','cal-pagos',
   'inv-ajustes','hist-ajustes','taller','st003','ingreso-taller',
-  'agenda-taller','orden-compra','admin'];
+  'agenda-taller','orden-compra','cierre-caja','admin'];
 
 let _admRoles = [], _admRolSelId = null;
 
