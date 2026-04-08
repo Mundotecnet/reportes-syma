@@ -5,7 +5,7 @@ MODULOS_TODOS = [
     'ventas', 'pagos', 'compras', 'productos', 'cxc', 'fproceso',
     'inventario', 'inv-ajustes', 'hist-ajustes', 'cv',
     'taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra',
-    'cxp', 'cierre-caja', 'admin'
+    'cxp', 'cierre-caja', 'caja-chica', 'admin'
 ]
 
 MODULOS_POR_ROL_DEFAULT = {

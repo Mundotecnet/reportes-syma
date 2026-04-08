@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, Request
+from fastapi import FastAPI, Query, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +22,11 @@ from reportes.compras_ventas     import get_compras_ventas_grafico
 from reportes.dashboard          import get_dashboard_periodo, get_dashboard_saldos
 from reportes.facturas_proceso   import get_facturas_proceso
 from reportes.cierre_caja        import get_cierre_caja
+from reportes.caja_chica         import (init_db as cc_init, get_caja_chica,
+                                          get_caja_chica_rango, crear_movimiento,
+                                          actualizar_foto, eliminar_movimiento,
+                                          get_total_dia, FOTO_DIR)
+cc_init()   # crea banco.db y tabla si no existe
 from reportes.taller             import get_taller, get_detalle_taller, get_siguiente_no_orden, buscar_clientes, get_agenda_dia, get_agenda_mes, get_ordenes_antiguas, get_servicios_st003, crear_orden, get_orden_completa, mover_orden, reordenar_dia
 from reportes.ordenes_compra     import get_siguiente_no_oc, crear_oc, get_historial_oc, get_oc, actualizar_estado_oc, eliminar_oc
 from reportes.permisos           import get_modulos_usuario, get_roles, get_modulos_rol, get_usuarios_con_rol, asignar_rol_usuario, actualizar_modulos_rol, crear_rol, MODULOS_TODOS
@@ -154,6 +159,46 @@ async def cierre_caja(fecha: str = Query("")):
     if not fecha:
         fecha = date.today().isoformat()
     return get_cierre_caja(fecha)
+
+# ── CAJA CHICA ────────────────────────────────────────────────────────────────
+@app.get("/api/caja-chica")
+async def api_get_caja_chica(fecha: str = Query(""),
+                              fecha_ini: str = Query(""), fecha_fin: str = Query("")):
+    from datetime import date as dt
+    if fecha_ini and fecha_fin:
+        return get_caja_chica_rango(fecha_ini, fecha_fin)
+    return get_caja_chica(fecha or dt.today().isoformat())
+
+@app.post("/api/caja-chica")
+async def api_crear_movimiento(
+        fecha:   str        = Form(...),
+        detalle: str        = Form(...),
+        monto:   float      = Form(...),
+        foto:    UploadFile = File(None),
+        request: Request    = None):
+    usuario  = request.session.get("usuario", "") if request else ""
+    foto_rel = None
+    mov      = crear_movimiento(fecha, detalle, monto, usuario)
+    if foto and foto.filename:
+        ext      = os.path.splitext(foto.filename)[1].lower()
+        nombre   = f"cc_{mov['id']}{ext}"
+        ruta_abs = os.path.join(FOTO_DIR, nombre)
+        with open(ruta_abs, "wb") as f:
+            f.write(await foto.read())
+        foto_rel = f"/static/caja_chica/{nombre}"
+        actualizar_foto(mov["id"], foto_rel)
+        mov["foto_path"] = foto_rel
+    return mov
+
+@app.delete("/api/caja-chica/{mov_id}")
+async def api_eliminar_movimiento(mov_id: int):
+    eliminar_movimiento(mov_id)
+    return {"ok": True}
+
+@app.get("/api/caja-chica/total")
+async def api_total_dia(fecha: str = Query("")):
+    from datetime import date as dt
+    return {"total": get_total_dia(fecha or dt.today().isoformat())}
 
 @app.get("/api/facturas-proceso")
 async def facturas_proceso(fecha_ini: str = Query(""), fecha_fin: str = Query(""),

@@ -94,6 +94,76 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
 
   <!-- ══════════ DASHBOARD ══════════ -->
   <!-- ══ CIERRE DE CAJA ══ -->
+  <!-- ══ CAJA CHICA ══ -->
+  <div id="tab-caja-chica" class="panel">
+
+    <!-- Formulario de registro -->
+    <div class="fcard" style="margin-bottom:16px">
+      <h3 style="margin-bottom:12px">➕ Registrar gasto</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+        <div class="fi">
+          <label>Fecha</label>
+          <input type="date" id="cc2-fecha">
+        </div>
+        <div class="fi" style="flex:1;min-width:200px">
+          <label>Detalle</label>
+          <input type="text" id="cc2-detalle" placeholder="Ej: Flete, Aseo, Guarda...">
+        </div>
+        <div class="fi">
+          <label>Monto (₡)</label>
+          <input type="number" id="cc2-monto" min="0" step="1" style="width:130px" placeholder="0">
+        </div>
+        <div class="fi">
+          <label>Foto documento</label>
+          <input type="file" id="cc2-foto" accept="image/*,application/pdf" style="font-size:12px">
+        </div>
+        <button class="btn-run" onclick="registrarCajaChica()">Guardar</button>
+      </div>
+      <div id="cc2-msg" style="margin-top:8px;font-size:12px;display:none"></div>
+    </div>
+
+    <!-- Filtro y tabla -->
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:12px">
+      <div class="fi"><label>Ver fecha</label><input type="date" id="cc2-fi"></div>
+      <button class="btn-run" style="background:#555" onclick="cargarCajaChica()">Consultar</button>
+    </div>
+
+    <div id="cc2-metricas" style="display:none;margin-bottom:12px">
+      <div class="metrics">
+        <div class="metric-card" style="border-top:3px solid #c0392b">
+          <div class="metric-val" style="color:#c0392b" id="cc2-m-total">₡0</div>
+          <div class="metric-lbl">Total gastos del día</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #7f8c8d">
+          <div class="metric-val" style="color:#7f8c8d" id="cc2-m-count">0</div>
+          <div class="metric-lbl">Movimientos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tcard" id="cc2-tabla-wrap" style="display:none">
+      <table style="width:100%">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Detalle</th>
+            <th class="r">Monto</th>
+            <th style="text-align:center">Foto</th>
+            <th style="text-align:center">Eliminar</th>
+          </tr>
+        </thead>
+        <tbody id="cc2-tbody"></tbody>
+        <tfoot id="cc2-tfoot"></tfoot>
+      </table>
+    </div>
+    <div id="cc2-empty" style="display:none;text-align:center;color:#aaa;padding:30px">Sin gastos registrados para esta fecha.</div>
+  </div>
+
+  <!-- Modal foto -->
+  <div id="cc2-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center" onclick="this.style.display='none'">
+    <img id="cc2-modal-img" style="max-width:90vw;max-height:90vh;border-radius:8px">
+  </div>
+
   <div id="tab-cierre-caja" class="panel">
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:16px">
       <div class="fi">
@@ -1557,7 +1627,9 @@ const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().s
 const hoyStr = hoy.toISOString().split('T')[0];
 ['db-fi','v-fi','p-fi','c-fi','pr-fi','ta-fi','ha-fi','st3-fi','fp-fi'].forEach(id => document.getElementById(id).value = primerDia);
 ['db-ff','v-ff','p-ff','c-ff','pr-ff','ta-ff','ha-ff','st3-ff','fp-ff'].forEach(id => document.getElementById(id).value = hoyStr);
-document.getElementById('cc-fecha').value = hoyStr;
+document.getElementById('cc-fecha').value  = hoyStr;
+document.getElementById('cc2-fecha').value = hoyStr;
+document.getElementById('cc2-fi').value    = hoyStr;
 
 
 // Verificar conexión y cargar usuario de sesión
@@ -1570,7 +1642,7 @@ fetch('/api/me').then(r=>r.json()).then(d=>{
   initNav(d.modulos || [
     'dashboard','ventas','pagos','compras','productos','cxc','inventario',
     'inv-ajustes','hist-ajustes','cv','taller','ingreso-taller',
-    'agenda-taller','st003','orden-compra','cxp','fproceso','cierre-caja','admin'
+    'agenda-taller','st003','orden-compra','cxp','fproceso','cierre-caja','caja-chica','admin'
   ]);
 });
 
@@ -1625,7 +1697,7 @@ const GRUPOS_NAV = {
   compras:     { label:'🛒 Compras',    tabs:['compras','cxp','cal-pagos'] },
   inventario:  { label:'📦 Inventario', tabs:['inv-ajustes','hist-ajustes'] },
   taller:      { label:'🔧 Taller',     tabs:['taller','st003','ingreso-taller','agenda-taller','orden-compra'] },
-  caja:        { label:'🏦 Caja/Banco', tabs:['cierre-caja'] },
+  caja:        { label:'🏦 Caja/Banco', tabs:['cierre-caja','caja-chica'] },
   admin:       { label:'⚙ Admin',       tabs:['admin'] },
 };
 const TAB_LABELS = {
@@ -1636,7 +1708,7 @@ const TAB_LABELS = {
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
   'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
-  'cierre-caja':'Cierre de Caja', admin:'Usuarios y Permisos'
+  'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', admin:'Usuarios y Permisos'
 };
 
 let _grupoActivo = 'ventas';
@@ -1692,6 +1764,7 @@ function showTab(name) {
   if (name === 'orden-compra')   initOrdenCompra();
   if (name === 'cal-pagos')      { _cpVista='semana'; initCalPagos(); }
   if (name === 'cierre-caja')    cargarCierreCaja();
+  if (name === 'caja-chica')     cargarCajaChica();
   if (name === 'cxp')            initCxP();
   if (name === 'admin')          initAdmin();
 }
@@ -3809,6 +3882,106 @@ function dashPeriodo(tipo) {
 }
 
 // ══════════════════════════════════════════════════════
+//  CAJA CHICA
+// ══════════════════════════════════════════════════════
+async function registrarCajaChica() {
+  const fecha   = document.getElementById('cc2-fecha').value;
+  const detalle = document.getElementById('cc2-detalle').value.trim();
+  const monto   = parseFloat(document.getElementById('cc2-monto').value);
+  const foto    = document.getElementById('cc2-foto').files[0];
+  const msg     = document.getElementById('cc2-msg');
+
+  if (!fecha || !detalle || !monto || monto <= 0) {
+    msg.textContent = '⚠ Completá fecha, detalle y monto.';
+    msg.style.color = '#c0392b'; msg.style.display = 'block';
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('fecha',   fecha);
+  fd.append('detalle', detalle);
+  fd.append('monto',   monto);
+  if (foto) fd.append('foto', foto);
+
+  const res = await fetch('/api/caja-chica', { method:'POST', body: fd });
+  if (res.ok) {
+    msg.textContent = '✅ Guardado correctamente.';
+    msg.style.color = '#27ae60'; msg.style.display = 'block';
+    document.getElementById('cc2-detalle').value = '';
+    document.getElementById('cc2-monto').value   = '';
+    document.getElementById('cc2-foto').value    = '';
+    // Sincronizar filtro con la fecha registrada
+    document.getElementById('cc2-fi').value = fecha;
+    cargarCajaChica();
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+  } else {
+    msg.textContent = '❌ Error al guardar.';
+    msg.style.color = '#c0392b'; msg.style.display = 'block';
+  }
+}
+
+async function cargarCajaChica() {
+  const fecha = document.getElementById('cc2-fi').value;
+  if (!fecha) return;
+
+  document.getElementById('cc2-tabla-wrap').style.display = 'none';
+  document.getElementById('cc2-empty').style.display      = 'none';
+  document.getElementById('cc2-metricas').style.display   = 'none';
+
+  const data = await fetch(`/api/caja-chica?fecha=${fecha}`).then(r => r.json());
+
+  document.getElementById('cc2-metricas').style.display = 'block';
+
+  if (!data.length) {
+    document.getElementById('cc2-empty').style.display  = 'block';
+    document.getElementById('cc2-m-total').textContent  = crc(0);
+    document.getElementById('cc2-m-count').textContent  = '0';
+    return;
+  }
+
+  const total = data.reduce((s, r) => s + r.monto, 0);
+  document.getElementById('cc2-m-total').textContent = crc(total);
+  document.getElementById('cc2-m-count').textContent = data.length;
+
+  let html = '';
+  data.forEach((r, i) => {
+    const bg = i % 2 === 0 ? '#fff' : '#f9f9f9';
+    const fotoBtn = r.foto_path
+      ? `<button onclick="verFoto('${r.foto_path}')" style="padding:3px 8px;border:1px solid #2980b9;border-radius:4px;background:#fff;color:#2980b9;cursor:pointer;font-size:11px">📷 Ver</button>`
+      : '<span style="color:#ccc;font-size:11px">—</span>';
+    html += `<tr style="background:${bg}">
+      <td style="padding:8px;font-size:12px">${r.fecha}</td>
+      <td style="padding:8px">${r.detalle}</td>
+      <td style="padding:8px;text-align:right;font-weight:600">${crc(r.monto)}</td>
+      <td style="padding:8px;text-align:center">${fotoBtn}</td>
+      <td style="padding:8px;text-align:center">
+        <button onclick="eliminarCC(${r.id})" style="padding:3px 8px;border:1px solid #c0392b;border-radius:4px;background:#fff;color:#c0392b;cursor:pointer;font-size:11px">🗑</button>
+      </td>
+    </tr>`;
+  });
+
+  document.getElementById('cc2-tbody').innerHTML = html;
+  document.getElementById('cc2-tfoot').innerHTML = `
+    <tr style="background:#fdecea;font-weight:700;color:#c0392b">
+      <td colspan="2" style="padding:8px">TOTAL GASTOS</td>
+      <td style="padding:8px;text-align:right">${crc(total)}</td>
+      <td colspan="2"></td>
+    </tr>`;
+  document.getElementById('cc2-tabla-wrap').style.display = 'block';
+}
+
+function verFoto(url) {
+  document.getElementById('cc2-modal-img').src = url;
+  document.getElementById('cc2-modal').style.display = 'flex';
+}
+
+async function eliminarCC(id) {
+  if (!confirm('¿Eliminar este gasto?')) return;
+  await fetch(`/api/caja-chica/${id}`, { method:'DELETE' });
+  cargarCajaChica();
+}
+
+// ══════════════════════════════════════════════════════
 //  CIERRE DE CAJA
 // ══════════════════════════════════════════════════════
 function ccHoy() {
@@ -3902,9 +4075,13 @@ async function cargarCierreCaja() {
       <div class="metric-val" style="color:#e65100">${crc(d.v_credito)}</div>
       <div class="metric-lbl">Crédito (pendiente cobro) <small style="color:#aaa">(${d.v_docs_credito} docs)</small></div>
     </div>
+    <div class="metric-card" style="border-top:3px solid #c0392b">
+      <div class="metric-val" style="color:#c0392b">${crc(d.caja_chica_total)}</div>
+      <div class="metric-lbl">🧾 Gastos caja chica</div>
+    </div>
     <div class="metric-card" style="border-top:3px solid #2e7d32">
-      <div class="metric-val" style="color:#2e7d32;font-size:1.4em">${crc(d.total_cobrado)}</div>
-      <div class="metric-lbl">✅ Total cobrado hoy</div>
+      <div class="metric-val" style="color:#2e7d32;font-size:1.4em">${crc(d.total_cobrado - d.caja_chica_total)}</div>
+      <div class="metric-lbl">✅ Efectivo neto en caja</div>
     </div>`;
 
   // ── Detalle ventas ────────────────────────────────────────────────────────
@@ -5413,12 +5590,12 @@ const MODULO_LABELS = {
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
   st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
   'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
-  'cierre-caja':'Cierre de Caja', admin:'Admin'
+  'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', admin:'Admin'
 };
 const MODULOS_ORDEN = ['dashboard','ventas','pagos','productos','cxc','cv','fproceso',
   'compras','cxp','cal-pagos',
   'inv-ajustes','hist-ajustes','taller','st003','ingreso-taller',
-  'agenda-taller','orden-compra','cierre-caja','admin'];
+  'agenda-taller','orden-compra','cierre-caja','caja-chica','admin'];
 
 let _admRoles = [], _admRolSelId = null;
 

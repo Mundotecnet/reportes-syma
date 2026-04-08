@@ -1,4 +1,5 @@
 from db import ejecutar_query
+from reportes.caja_chica import get_total_dia
 
 
 def get_cierre_caja(fecha: str) -> dict:
@@ -156,6 +157,9 @@ def get_cierre_caja(fecha: str) -> dict:
         "total_transferencias": f(v.get("transferencias")) + f(c.get("transferencias")),
         "total_cobrado":        f(v.get("total")) - f(v.get("credito")) + f(c.get("total")),
         "gran_total":           f(v.get("total"))           + f(c.get("total")),
+
+        # Caja chica del día (gastos que salen del efectivo)
+        "caja_chica_total": get_total_dia(fecha),
 
         # CAJAS_TRANS
         "trans_entradas": entradas,
