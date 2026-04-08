@@ -26,7 +26,7 @@ from reportes.caja_chica         import (init_db as cc_init, get_caja_chica,
                                           get_caja_chica_rango, crear_movimiento,
                                           actualizar_foto, eliminar_movimiento,
                                           get_total_dia, FOTO_DIR)
-cc_init()   # crea banco.db y tabla si no existe
+cc_init()   # asegura que exista el directorio static/caja_chica (tabla M_CAJA_CHICA en SQL Server)
 from reportes.taller             import get_taller, get_detalle_taller, get_siguiente_no_orden, buscar_clientes, get_agenda_dia, get_agenda_mes, get_ordenes_antiguas, get_servicios_st003, crear_orden, get_orden_completa, mover_orden, reordenar_dia
 from reportes.ordenes_compra     import get_siguiente_no_oc, crear_oc, get_historial_oc, get_oc, actualizar_estado_oc, eliminar_oc
 from reportes.permisos           import get_modulos_usuario, get_roles, get_modulos_rol, get_usuarios_con_rol, asignar_rol_usuario, actualizar_modulos_rol, crear_rol, MODULOS_TODOS

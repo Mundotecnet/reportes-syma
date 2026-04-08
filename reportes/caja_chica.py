@@ -1,87 +1,107 @@
-import sqlite3
 import os
-from datetime import date
+from db import ejecutar_query, get_connection
 
-DB_PATH    = os.path.join(os.path.dirname(__file__), '..', 'banco.db')
-FOTO_DIR   = os.path.join(os.path.dirname(__file__), '..', 'static', 'caja_chica')
-
-
-def _conn():
-    return sqlite3.connect(DB_PATH)
+FOTO_DIR = os.path.join(os.path.dirname(__file__), '..', 'static', 'caja_chica')
 
 
 def init_db():
-    """Crea la tabla si no existe."""
+    """Asegura que el directorio de fotos exista (tabla en SQL Server ya creada)."""
     os.makedirs(FOTO_DIR, exist_ok=True)
-    with _conn() as c:
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS caja_chica (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                fecha      TEXT    NOT NULL,
-                detalle    TEXT    NOT NULL,
-                monto      REAL    NOT NULL,
-                foto_path  TEXT,
-                usuario    TEXT,
-                creado_en  TEXT    DEFAULT (datetime('now','localtime'))
-            )
-        """)
-        c.commit()
 
 
 def get_caja_chica(fecha: str) -> list:
-    with _conn() as c:
-        c.row_factory = sqlite3.Row
-        rows = c.execute(
-            "SELECT * FROM caja_chica WHERE fecha = ? ORDER BY creado_en",
-            (fecha,)
-        ).fetchall()
-    return [dict(r) for r in rows]
+    filas = ejecutar_query(
+        "SELECT ID, FECHA, DETALLE, MONTO, FOTO_PATH, USUARIO, CREADO_EN "
+        "FROM M_CAJA_CHICA WHERE CAST(FECHA AS date) = ? ORDER BY CREADO_EN",
+        (fecha,)
+    )
+    return [_row(r) for r in filas]
 
 
 def get_caja_chica_rango(fecha_ini: str, fecha_fin: str) -> list:
-    with _conn() as c:
-        c.row_factory = sqlite3.Row
-        rows = c.execute(
-            "SELECT * FROM caja_chica WHERE fecha BETWEEN ? AND ? ORDER BY fecha, creado_en",
-            (fecha_ini, fecha_fin)
-        ).fetchall()
-    return [dict(r) for r in rows]
+    filas = ejecutar_query(
+        "SELECT ID, FECHA, DETALLE, MONTO, FOTO_PATH, USUARIO, CREADO_EN "
+        "FROM M_CAJA_CHICA WHERE CAST(FECHA AS date) BETWEEN ? AND ? "
+        "ORDER BY FECHA, CREADO_EN",
+        (fecha_ini, fecha_fin)
+    )
+    return [_row(r) for r in filas]
 
 
 def crear_movimiento(fecha: str, detalle: str, monto: float,
                      usuario: str = "", foto_path: str = None) -> dict:
-    with _conn() as c:
-        cur = c.execute(
-            "INSERT INTO caja_chica (fecha, detalle, monto, usuario, foto_path) VALUES (?,?,?,?,?)",
-            (fecha, detalle, monto, usuario, foto_path)
+    conn = get_connection()
+    cur  = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO M_CAJA_CHICA (FECHA, DETALLE, MONTO, USUARIO, FOTO_PATH) "
+            "OUTPUT INSERTED.ID VALUES (?, ?, ?, ?, ?)",
+            (fecha, detalle, float(monto), usuario, foto_path)
         )
-        c.commit()
-        row_id = cur.lastrowid
-    return {"id": row_id, "fecha": fecha, "detalle": detalle,
-            "monto": monto, "foto_path": foto_path}
+        row_id = int(cur.fetchone()[0])
+        conn.commit()
+        return {"id": row_id, "fecha": fecha, "detalle": detalle,
+                "monto": float(monto), "foto_path": foto_path}
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cur.close()
+        conn.close()
 
 
 def actualizar_foto(mov_id: int, foto_path: str):
-    with _conn() as c:
-        c.execute("UPDATE caja_chica SET foto_path=? WHERE id=?", (foto_path, mov_id))
-        c.commit()
+    conn = get_connection()
+    cur  = conn.cursor()
+    try:
+        cur.execute("UPDATE M_CAJA_CHICA SET FOTO_PATH=? WHERE ID=?",
+                    (foto_path, mov_id))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
 
 def eliminar_movimiento(mov_id: int):
-    with _conn() as c:
-        row = c.execute("SELECT foto_path FROM caja_chica WHERE id=?", (mov_id,)).fetchone()
+    conn = get_connection()
+    cur  = conn.cursor()
+    try:
+        # Obtener ruta de foto antes de borrar
+        cur.execute("SELECT FOTO_PATH FROM M_CAJA_CHICA WHERE ID=?", (mov_id,))
+        row = cur.fetchone()
         if row and row[0]:
+            # foto_path viene como "/static/caja_chica/cc_X.jpg"
+            # convertir a ruta absoluta en disco
+            rel = row[0].lstrip("/")            # "static/caja_chica/cc_X.jpg"
+            base = os.path.join(os.path.dirname(__file__), '..', rel)
             try:
-                os.remove(row[0])
+                os.remove(os.path.normpath(base))
             except FileNotFoundError:
                 pass
-        c.execute("DELETE FROM caja_chica WHERE id=?", (mov_id,))
-        c.commit()
+        cur.execute("DELETE FROM M_CAJA_CHICA WHERE ID=?", (mov_id,))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
 
 def get_total_dia(fecha: str) -> float:
-    with _conn() as c:
-        row = c.execute(
-            "SELECT COALESCE(SUM(monto),0) FROM caja_chica WHERE fecha=?", (fecha,)
-        ).fetchone()
-    return float(row[0])
+    filas = ejecutar_query(
+        "SELECT ISNULL(SUM(MONTO), 0) AS total FROM M_CAJA_CHICA "
+        "WHERE CAST(FECHA AS date) = ?",
+        (fecha,)
+    )
+    return float(filas[0]["total"]) if filas else 0.0
+
+
+# ── Helper interno ─────────────────────────────────────────────────────────────
+def _row(r: dict) -> dict:
+    return {
+        "id":        r["ID"],
+        "fecha":     str(r["FECHA"])[:10] if r["FECHA"] else "",
+        "detalle":   r["DETALLE"] or "",
+        "monto":     float(r["MONTO"] or 0),
+        "foto_path": r["FOTO_PATH"] or None,
+        "usuario":   r["USUARIO"] or "",
+        "creado_en": str(r["CREADO_EN"]) if r["CREADO_EN"] else "",
+    }

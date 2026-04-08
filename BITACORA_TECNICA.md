@@ -42,6 +42,8 @@
 | **Agenda Taller** | `agenda-taller` | Calendario mensual/semanal/diario + backlog drag&drop |
 | Orden Compra | `orden-compra` | Gestión de órdenes de compra internas |
 | **Facturas en Proceso** | `fproceso` | Facturas ESTADO='P' con detalle expandible, seriales y resumen acumulado por producto |
+| **Cierre de Caja** | `cierre-caja` | Resumen diario de ventas + cobros CXC por forma de pago. Auto-carga + navegación ◀▶ días |
+| **Caja Chica** | `caja-chica` | Registro de gastos diarios (fletes, aseo, guarda) con foto. Monto se resta del efectivo en cierre |
 | Admin | `admin` | Gestión de roles y permisos por módulo |
 
 ### Orden de tabs en navegación
@@ -51,6 +53,7 @@
 🛒 Compras:    compras → cxp → cal-pagos
 📦 Inventario: inv-ajustes → hist-ajustes
 🔧 Taller:     taller → st003 → ingreso-taller → agenda-taller → orden-compra
+🏦 Caja/Banco: cierre-caja → caja-chica
 ⚙ Admin:       admin
 ```
 
@@ -58,6 +61,7 @@
 - [ ] Exportar reporte ST003 a Excel/PDF
 - [ ] Agregar filtro de búsqueda por cliente en tab ST003
 - [ ] Vincular órdenes de taller con facturas (requiere cambio en Syma — no hay campo `NO_FACTURA` en `ORDEN_SERVICIO`)
+- [ ] Exportar cierre de caja a PDF
 
 ---
 
@@ -155,6 +159,14 @@ sshpass -p '87060002' ssh lroot@192.168.88.250 "sudo journalctl -u reportes.serv
 
 ## BASE DE DATOS (tablas clave)
 
+### Convención de tablas nuevas (M_ prefix)
+> **REGLA:** Toda tabla creada por el sistema de reportes debe residir en la **misma base de datos SQL Server Syma** y usar el prefijo **`M_`** para diferenciarlas de las tablas originales del sistema SYMA.
+> - Cuenta: `sa` (permisos completos confirmados)
+> - Servidor: `192.168.88.250` (pyodbc via `db.py`)
+> - Nunca usar SQLite (`banco.db`) para nuevas tablas
+
+### Tablas SYMA originales (solo lectura)
+
 | Tabla | Descripción |
 |-------|-------------|
 | `ORDEN_SERVICIO` | Cabecera de órdenes de taller |
@@ -165,14 +177,26 @@ sshpass -p '87060002' ssh lroot@192.168.88.250 "sudo journalctl -u reportes.serv
 | `Clientes` | Catálogo de clientes |
 | `PRODUCTOS` | Catálogo de productos/servicios |
 | `USUARIOS` | Usuarios del sistema Syma |
-| `M_ROLES` | Roles del sistema de reportes |
-| `M_ROL_MODULOS` | Módulos habilitados por rol |
-| `M_USUARIO_ROL` | Asignación usuario → rol |
 | `ETransac` | Transacciones CXC (ID_CONCEPTO='02', STATUS='A'). **OJO:** usar `Clientes.SALDO` para totales CXC, no `ETransac.SALDO_DOC` (ETransac tiene facturas históricas duplicadas) |
 | `ETransacP` | Transacciones CXP (ID_CONCEPTO='01', STATUS='A', SALDO_DOC>0) |
 | `COMPRAS` | Facturas de proveedores. ID_MONEDA: 'CRC' o 'USD'. PROVEEDOR_ID=178 = IT SERVICE S.A. |
 | `PUNTO_VENTA` | Estados: 'A'=Activa, 'P'=En Proceso (120 docs), 'C'=Cancelada |
 | `PUNTO_VENTA_DETALLE` | Columna `SERIES` = serial del producto (puede ser NULL). NO tiene columna `LINEA`, ordenar por `ID_CP` |
+| `CAJAS_TRANS` | Entradas/salidas manuales de caja (TIPO_ID='E'/'S', ESTADO='A') |
+| `TipoPago` | Catálogo: 01=Efectivo, 02=Tarjeta, 03=Cheque, 04=Transf/Depósito, 06=Sinpe Móvil, 07=Plataforma Digital |
+
+### Tablas M_ del sistema de reportes (creadas por nosotros en SQL Server Syma)
+
+| Tabla | Descripción | DDL resumen |
+|-------|-------------|-------------|
+| `M_ROLES` | Roles del sistema de reportes | `id INT IDENTITY PK, nombre NVARCHAR(100), descripcion NVARCHAR(255)` |
+| `M_ROL_MODULOS` | Módulos habilitados por rol | `rol_id INT FK, modulo NVARCHAR(50)` |
+| `M_USUARIO_ROL` | Asignación usuario → rol | `login NVARCHAR(10), rol_id INT FK` |
+| `M_ORDENES_COMPRA` | Órdenes de compra internas | Ver `reportes/ordenes_compra.py` |
+| `M_OC_LINEAS` | Líneas de cada OC | Ver `reportes/ordenes_compra.py` |
+| `M_AJUSTES` | Cabecera de ajustes de inventario | Ver `reportes/inventario_ajustes.py` |
+| `M_AJUSTES_DETALLE` | Líneas de cada ajuste de inventario | Ver `reportes/inventario_ajustes.py` |
+| `M_CAJA_CHICA` | Gastos diarios de caja chica | `ID INT IDENTITY PK, FECHA DATE, DETALLE NVARCHAR(255), MONTO DECIMAL(15,2), FOTO_PATH NVARCHAR(500), USUARIO NVARCHAR(100), CREADO_EN DATETIME DEFAULT GETDATE()` |
 
 ### ORDEN_SERVICIO — columnas importantes
 | Columna | Descripción |
@@ -239,6 +263,8 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 7. **IT SERVICE PROVEEDOR_ID=178** — `IT SERVICE SOCIEDAD ANONIMA`. Excluir de Compras y CXP con checkbox. En Dashboard CXP es exclusión permanente por parámetro `excluir_itservice`.
 8. **Monedas en Dashboard** — Ventas: `PUNTO_VENTA.ID_MONEDA`. CXC: `Clientes.ID_MONEDA`. CXP: `ETransacP.ID_MONEDA`. Detectar USD con `RTRIM(ISNULL(ID_MONEDA,'CRC')) = 'USD'`.
 9. **PUNTO_VENTA_DETALLE sin LINEA** — No existe columna `LINEA`. Usar `ID_CP` para ordenar líneas de detalle.
+10. **Efectivo en PUNTO_VENTA** — El efectivo real es `TOTAL - MONTO_TARJETAS - MONTO_CHEQUES - MONTO_TRANSFERENCIAS`, PERO solo cuando `ID_CONCEPTO='01'` (contado). Para `ID_CONCEPTO='02'` (crédito) el efectivo es 0 aunque `MONTO_*=0`. Siempre usar `CASE WHEN ID_CONCEPTO='01' THEN ... ELSE 0`.
+11. **Tablas nuevas → SQL Server con prefijo M_** — Nunca crear tablas en SQLite. Toda tabla nueva va en SQL Server Syma (misma conexión de `db.py`) con prefijo `M_` para distinguirlas de las tablas originales de SYMA.
 
 ---
 
@@ -308,6 +334,17 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 | 28 | Nuevo | Serial por línea de detalle: muestra etiqueta naranja `📋 SERIAL` si `PUNTO_VENTA_DETALLE.SERIES` tiene valor | `reportes/facturas_proceso.py`, `index.html` |
 | 29 | Nuevo | Resumen acumulado por producto al pie del reporte: agrupa todas las líneas, ordena por total DESC, muestra N° documentos donde aparece cada producto como chips azules | `index.html` |
 | 30 | Fix | `ORDER BY pvd.LINEA` fallaba — columna inexistente. Corregido a `ORDER BY pvd.ID_CP` | `reportes/facturas_proceso.py` |
+
+### [SESIÓN 6] Cierre de Caja + Caja Chica + Migración SQL Server
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 31 | Nuevo | Módulo **Cierre de Caja** (`cierre-caja`). Query optimizado: 2 aggregados + 2 detalles. Ventas del día por forma de pago (solo contado suma efectivo; crédito va a columna CXC separada). Cobros CXC del día desde `ETransac`. CAJAS_TRANS para entradas/salidas manuales | `reportes/cierre_caja.py`, `main.py`, `permisos.py`, `index.html` |
+| 32 | Fix | Facturas crédito (`ID_CONCEPTO='02'`) sumaban en efectivo porque formula `TOTAL-0-0-0=TOTAL`. Corregido con `CASE WHEN ID_CONCEPTO='01' THEN ... ELSE 0` en query. Columna CXC separada en tabla | `reportes/cierre_caja.py`, `index.html` |
+| 33 | Fix | Columna "Forma Pago" mostraba "Efectivo" para facturas crédito (JOIN a TipoPago devuelve '01'). Corregido en JS: `r.concepto==='02' ? 'CXC' : r.forma_pago` | `index.html` |
+| 34 | Nuevo | Módulo **Caja Chica** (`caja-chica`). Registro de gastos diarios (Fletes, Aseo, Guarda) con Fecha, Detalle, Monto y foto adjunta. Foto guardada en `static/caja_chica/`. Total del día se descuenta del efectivo en cierre de caja | `reportes/caja_chica.py`, `main.py`, `permisos.py`, `index.html` |
+| 35 | Infra | **Migración SQLite → SQL Server**: Caja Chica inicialmente usaba `banco.db` (SQLite). Creada tabla `M_CAJA_CHICA` en SQL Server Syma (cuenta `sa`). `reportes/caja_chica.py` reescrito para usar `ejecutar_query`/`get_connection` de `db.py`. Eliminada dependencia de `sqlite3`. `cc_init()` ahora solo crea directorio de fotos | `reportes/caja_chica.py`, `main.py` |
+| 36 | Docs | **Convención M_ prefix**: Toda tabla nueva debe residir en SQL Server Syma con prefijo `M_`. Documentado en bitácora como regla. Inventario de todas las tablas M_ existentes | `BITACORA_TECNICA.md` |
 
 ---
 *Actualizar esta bitácora al cierre de cada sesión con `"cierra la sesión"`*
