@@ -44,6 +44,7 @@
 | **Facturas en Proceso** | `fproceso` | Facturas ESTADO='P' con detalle expandible, seriales y resumen acumulado por producto |
 | **Cierre de Caja** | `cierre-caja` | Resumen diario de ventas + cobros CXC por forma de pago. Auto-carga + navegación ◀▶ días |
 | **Caja Chica** | `caja-chica` | Registro de gastos diarios (fletes, aseo, guarda) con foto. Monto se resta del efectivo en cierre |
+| **Control Efectivo** | `depositos` | Acumulado de efectivo neto (ventas - caja chica) vs depósitos bancarios. Registra depósitos con foto comprobante |
 | Admin | `admin` | Gestión de roles y permisos por módulo |
 
 ### Orden de tabs en navegación
@@ -53,7 +54,7 @@
 🛒 Compras:    compras → cxp → cal-pagos
 📦 Inventario: inv-ajustes → hist-ajustes
 🔧 Taller:     taller → st003 → ingreso-taller → agenda-taller → orden-compra
-🏦 Caja/Banco: cierre-caja → caja-chica
+🏦 Caja/Banco: cierre-caja → caja-chica → depositos
 ⚙ Admin:       admin
 ```
 
@@ -197,6 +198,7 @@ sshpass -p '87060002' ssh lroot@192.168.88.250 "sudo journalctl -u reportes.serv
 | `M_AJUSTES` | Cabecera de ajustes de inventario | Ver `reportes/inventario_ajustes.py` |
 | `M_AJUSTES_DETALLE` | Líneas de cada ajuste de inventario | Ver `reportes/inventario_ajustes.py` |
 | `M_CAJA_CHICA` | Gastos diarios de caja chica | `ID INT IDENTITY PK, FECHA DATE, DETALLE NVARCHAR(255), MONTO DECIMAL(15,2), FOTO_PATH NVARCHAR(500), USUARIO NVARCHAR(100), CREADO_EN DATETIME DEFAULT GETDATE()` |
+| `M_DEPOSITOS` | Depósitos bancarios registrados | `ID INT IDENTITY PK, FECHA DATE, BANCO NVARCHAR(100), MONTO DECIMAL(15,2), NOTAS NVARCHAR(500), FOTO_PATH NVARCHAR(500), USUARIO NVARCHAR(100), CREADO_EN DATETIME DEFAULT GETDATE()` |
 
 ### ORDEN_SERVICIO — columnas importantes
 | Columna | Descripción |
@@ -345,6 +347,15 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 | 34 | Nuevo | Módulo **Caja Chica** (`caja-chica`). Registro de gastos diarios (Fletes, Aseo, Guarda) con Fecha, Detalle, Monto y foto adjunta. Foto guardada en `static/caja_chica/`. Total del día se descuenta del efectivo en cierre de caja | `reportes/caja_chica.py`, `main.py`, `permisos.py`, `index.html` |
 | 35 | Infra | **Migración SQLite → SQL Server**: Caja Chica inicialmente usaba `banco.db` (SQLite). Creada tabla `M_CAJA_CHICA` en SQL Server Syma (cuenta `sa`). `reportes/caja_chica.py` reescrito para usar `ejecutar_query`/`get_connection` de `db.py`. Eliminada dependencia de `sqlite3`. `cc_init()` ahora solo crea directorio de fotos | `reportes/caja_chica.py`, `main.py` |
 | 36 | Docs | **Convención M_ prefix**: Toda tabla nueva debe residir en SQL Server Syma con prefijo `M_`. Documentado en bitácora como regla. Inventario de todas las tablas M_ existentes | `BITACORA_TECNICA.md` |
+
+### [SESIÓN 7] Módulo Control de Efectivo / Depósitos
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 37 | Nuevo | Tabla `M_DEPOSITOS` creada en SQL Server Syma (Fecha, Banco, Monto, Notas, FotoPath, Usuario, CreadoEn) | SQL Server |
+| 38 | Nuevo | `reportes/depositos.py`: CRUD depósitos + `get_resumen_control_efectivo(fecha_ini, fecha_fin)`. Calcula efectivo diario neto (ef_ventas + ef_cobros_CXC_efectivo − caja_chica) vs depósitos, con saldo acumulado corriente por día | `reportes/depositos.py` |
+| 39 | Nuevo | Endpoints: `GET/POST/DELETE /api/depositos` y `GET /api/control-efectivo`. POST acepta form multipart con foto | `main.py` |
+| 40 | Nuevo | Tab `depositos` (Control Efectivo) en grupo 🏦 Caja/Banco. Métricas: acumulado período, total depositado, saldo en caja (naranja/rojo según signo), total caja chica. Tabla resumen diario con saldo corriente. Formulario de depósito con Fecha/Banco/Monto/Notas/Foto. Lista de depósitos con foto y botón eliminar | `templates/index.html`, `permisos.py` |
 
 ---
 *Actualizar esta bitácora al cierre de cada sesión con `"cierra la sesión"`*
