@@ -138,6 +138,55 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
         </div>
       </div>
 
+      <!-- Detalle ventas de soporte -->
+      <div style="margin-top:24px">
+        <div style="font-size:13px;font-weight:700;color:#1E4E8C;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1E4E8C;padding-bottom:4px;margin-bottom:10px">
+          🧾 Ventas del día
+        </div>
+        <div class="tcard">
+          <table id="cc-ventas-tabla" style="width:100%;font-size:12px">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>N° Doc</th>
+                <th>Tipo</th>
+                <th>Cliente</th>
+                <th>Forma Pago</th>
+                <th class="r">Efectivo</th>
+                <th class="r">Tarjeta</th>
+                <th class="r">Transf/SINPE</th>
+                <th class="r">Cheque</th>
+                <th class="r">Total</th>
+              </tr>
+            </thead>
+            <tbody id="cc-ventas-tbody"></tbody>
+            <tfoot id="cc-ventas-tfoot"></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detalle cobros CXC de soporte -->
+      <div id="cc-cobros-wrap" style="display:none;margin-top:20px">
+        <div style="font-size:13px;font-weight:700;color:#6a1b9a;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #6a1b9a;padding-bottom:4px;margin-bottom:10px">
+          💰 Cobros CXC del día
+        </div>
+        <div class="tcard">
+          <table style="width:100%;font-size:12px">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>N° Doc</th>
+                <th>Cliente</th>
+                <th>Forma Pago</th>
+                <th class="r">Monto</th>
+              </tr>
+            </thead>
+            <tbody id="cc-cobros-tbody"></tbody>
+            <tfoot id="cc-cobros-tfoot"></tfoot>
+          </table>
+        </div>
+      </div>
+
     </div>
     <div id="cc-empty" style="display:none;text-align:center;color:#aaa;padding:40px;font-size:1.1em">Sin movimientos para esta fecha.</div>
   </div>
@@ -3843,6 +3892,62 @@ async function cargarCierreCaja() {
       <div class="metric-val" style="color:#1E4E8C;font-size:1.4em">${crc(d.gran_total)}</div>
       <div class="metric-lbl">Gran Total del día</div>
     </div>`;
+
+  // ── Detalle ventas ────────────────────────────────────────────────────────
+  const conceptoV = c => c === '01' ? 'Contado' : c === '02' ? 'Crédito' : c;
+  let vHtml = '';
+  const dv = d.detalle_ventas || [];
+  dv.forEach((r, i) => {
+    const bg = i % 2 === 0 ? '#fff' : '#f9f9f9';
+    vHtml += `<tr style="background:${bg}">
+      <td style="padding:6px;color:#888">${r.hora}</td>
+      <td style="padding:6px" class="r">${r.doc}</td>
+      <td style="padding:6px;font-size:11px">${conceptoV(r.concepto)}</td>
+      <td style="padding:6px">${r.cliente || '—'}</td>
+      <td style="padding:6px;font-size:11px">${r.forma_pago || '—'}</td>
+      <td style="padding:6px" class="r">${r.efectivo      > 0 ? crc(r.efectivo)      : '<span style="color:#ddd">—</span>'}</td>
+      <td style="padding:6px" class="r">${r.tarjetas      > 0 ? crc(r.tarjetas)      : '<span style="color:#ddd">—</span>'}</td>
+      <td style="padding:6px" class="r">${r.transferencias> 0 ? crc(r.transferencias): '<span style="color:#ddd">—</span>'}</td>
+      <td style="padding:6px" class="r">${r.cheques       > 0 ? crc(r.cheques)       : '<span style="color:#ddd">—</span>'}</td>
+      <td style="padding:6px;font-weight:700" class="r">${crc(r.total)}</td>
+    </tr>`;
+  });
+  document.getElementById('cc-ventas-tbody').innerHTML = vHtml || '<tr><td colspan="10" class="no-data">Sin ventas</td></tr>';
+  document.getElementById('cc-ventas-tfoot').innerHTML = `
+    <tr style="background:#e8eef6;font-weight:700">
+      <td colspan="5" style="padding:8px">TOTAL VENTAS (${dv.length} docs)</td>
+      <td class="r" style="padding:8px">${crc(d.v_efectivo)}</td>
+      <td class="r" style="padding:8px">${crc(d.v_tarjetas)}</td>
+      <td class="r" style="padding:8px">${crc(d.v_transferencias)}</td>
+      <td class="r" style="padding:8px">${crc(d.v_cheques)}</td>
+      <td class="r" style="padding:8px;color:#1E4E8C;font-size:1.05em">${crc(d.v_total)}</td>
+    </tr>`;
+
+  // ── Detalle cobros CXC ────────────────────────────────────────────────────
+  const dc = d.detalle_cobros || [];
+  const cobrosWrap = document.getElementById('cc-cobros-wrap');
+  if (dc.length) {
+    let cHtml = '';
+    dc.forEach((r, i) => {
+      const bg = i % 2 === 0 ? '#fff' : '#f9f9f9';
+      cHtml += `<tr style="background:${bg}">
+        <td style="padding:6px;color:#888">${r.hora}</td>
+        <td style="padding:6px" class="r">${r.doc}</td>
+        <td style="padding:6px">${r.cliente || '—'}</td>
+        <td style="padding:6px;font-size:11px">${r.forma_pago || '—'}</td>
+        <td style="padding:6px;font-weight:700" class="r">${crc(r.total)}</td>
+      </tr>`;
+    });
+    document.getElementById('cc-cobros-tbody').innerHTML = cHtml;
+    document.getElementById('cc-cobros-tfoot').innerHTML = `
+      <tr style="background:#ede7f6;font-weight:700">
+        <td colspan="4" style="padding:8px">TOTAL COBROS CXC (${dc.length} cobros)</td>
+        <td class="r" style="padding:8px;color:#6a1b9a;font-size:1.05em">${crc(d.c_total)}</td>
+      </tr>`;
+    cobrosWrap.style.display = 'block';
+  } else {
+    cobrosWrap.style.display = 'none';
+  }
 
   // Movimientos manuales de caja
   const transWrap = document.getElementById('cc-trans-wrap');

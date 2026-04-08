@@ -65,6 +65,48 @@ def get_cierre_caja(fecha: str) -> dict:
     entradas  = sum(float(t["MONTO"] or 0) for t in trans if t["tipo"] == "E")
     salidas   = sum(float(t["MONTO"] or 0) for t in trans if t["tipo"] == "S")
 
+    # ── DETALLE VENTAS del día ────────────────────────────────────────────────
+    detalle_ventas = ejecutar_query("""
+        SELECT
+            pv.ID_DOCUMENTO                                                  AS doc,
+            RTRIM(ISNULL(pv.FACTURA,''))                                     AS factura,
+            CONVERT(varchar(5), pv.FECHA, 108)                               AS hora,
+            RTRIM(ISNULL(pv.NOMBRE,''))                                      AS cliente,
+            RTRIM(ISNULL(tp.DESCRIPCION,''))                                 AS forma_pago,
+            RTRIM(ISNULL(pv.ID_CONCEPTO,''))                                 AS concepto,
+            ISNULL(pv.TOTAL, 0)                                              AS total,
+            ISNULL(pv.MONTO_TARJETAS, 0)                                     AS tarjetas,
+            ISNULL(pv.MONTO_CHEQUES, 0)                                      AS cheques,
+            ISNULL(pv.MONTO_TRANSFERENCIAS, 0)                               AS transferencias,
+            ISNULL(pv.TOTAL,0)
+              - ISNULL(pv.MONTO_TARJETAS,0)
+              - ISNULL(pv.MONTO_CHEQUES,0)
+              - ISNULL(pv.MONTO_TRANSFERENCIAS,0)                            AS efectivo
+        FROM PUNTO_VENTA pv
+        LEFT JOIN TipoPago tp ON RTRIM(tp.ID_TIPOPAGO) = RTRIM(pv.ID_TIPOPAGO)
+        WHERE CAST(pv.FECHA AS date) = ?
+          AND pv.ESTADO = 'A'
+        ORDER BY pv.FECHA
+    """, (fecha,))
+
+    # ── DETALLE COBROS CXC del día ────────────────────────────────────────────
+    detalle_cobros = ejecutar_query("""
+        SELECT
+            et.ID_DOCUMENTO                                                  AS doc,
+            CONVERT(varchar(5), et.FECHA, 108)                               AS hora,
+            RTRIM(ISNULL(cl.NOMBRE,'') + ' ' + ISNULL(cl.APELLIDO1,''))     AS cliente,
+            RTRIM(ISNULL(tp.DESCRIPCION,''))                                 AS forma_pago,
+            ISNULL(et.MONTO, 0)                                              AS total
+        FROM ETransac et
+        LEFT JOIN Clientes cl ON cl.ID_CLIENTE = et.ID_CLIENTE
+        LEFT JOIN TipoPago tp ON RTRIM(tp.ID_TIPOPAGO) = RTRIM(et.ID_TIPOPAGO)
+        WHERE CAST(et.FECHA AS date) = ?
+          AND et.ID_TIPODOC  = '01'
+          AND et.ID_CONCEPTO = '01'
+          AND et.STATUS      = 'A'
+        ORDER BY et.FECHA
+    """, (fecha,))
+
     def f(val):
         return float(val or 0)
 
@@ -100,4 +142,28 @@ def get_cierre_caja(fecha: str) -> dict:
         "trans_detalle":  [{"tipo": t["tipo"], "concepto": t["concepto"],
                             "monto": float(t["MONTO"] or 0),
                             "responsable": t["responsable"]} for t in trans],
+
+        # Detalle ventas
+        "detalle_ventas": [{
+            "doc":            r["doc"],
+            "factura":        r["factura"].strip(),
+            "hora":           r["hora"],
+            "cliente":        r["cliente"],
+            "forma_pago":     r["forma_pago"],
+            "concepto":       r["concepto"].strip(),
+            "total":          f(r["total"]),
+            "efectivo":       f(r["efectivo"]),
+            "tarjetas":       f(r["tarjetas"]),
+            "cheques":        f(r["cheques"]),
+            "transferencias": f(r["transferencias"]),
+        } for r in detalle_ventas],
+
+        # Detalle cobros
+        "detalle_cobros": [{
+            "doc":        r["doc"],
+            "hora":       r["hora"],
+            "cliente":    r["cliente"].strip(),
+            "forma_pago": r["forma_pago"],
+            "total":      f(r["total"]),
+        } for r in detalle_cobros],
     }
