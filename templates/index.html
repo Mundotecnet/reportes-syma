@@ -156,6 +156,7 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
                 <th class="r">Tarjeta</th>
                 <th class="r">Transf/SINPE</th>
                 <th class="r">Cheque</th>
+                <th class="r" style="color:#e65100">CXC</th>
                 <th class="r">Total</th>
               </tr>
             </thead>
@@ -3918,10 +3919,11 @@ async function cargarCierreCaja() {
       <td style="padding:6px;font-size:11px">${conceptoV(r.concepto)}</td>
       <td style="padding:6px">${r.cliente || '—'}</td>
       <td style="padding:6px;font-size:11px">${r.concepto === '02' ? '<span style="color:#e65100;font-weight:600">CXC</span>' : (r.forma_pago || '—')}</td>
-      <td style="padding:6px" class="r">${r.efectivo      > 0 ? crc(r.efectivo)      : '<span style="color:#ddd">—</span>'}</td>
+      <td style="padding:6px" class="r">${r.concepto!=='02' && r.efectivo      > 0 ? crc(r.efectivo)      : '<span style="color:#ddd">—</span>'}</td>
       <td style="padding:6px" class="r">${r.tarjetas      > 0 ? crc(r.tarjetas)      : '<span style="color:#ddd">—</span>'}</td>
       <td style="padding:6px" class="r">${r.transferencias> 0 ? crc(r.transferencias): '<span style="color:#ddd">—</span>'}</td>
       <td style="padding:6px" class="r">${r.cheques       > 0 ? crc(r.cheques)       : '<span style="color:#ddd">—</span>'}</td>
+      <td style="padding:6px;color:#e65100;font-weight:600" class="r">${r.concepto==='02' ? crc(r.total) : '<span style="color:#ddd">—</span>'}</td>
       <td style="padding:6px;font-weight:700" class="r">${crc(r.total)}</td>
     </tr>`;
   });
@@ -3933,6 +3935,7 @@ async function cargarCierreCaja() {
       <td class="r" style="padding:8px">${crc(d.v_tarjetas)}</td>
       <td class="r" style="padding:8px">${crc(d.v_transferencias)}</td>
       <td class="r" style="padding:8px">${crc(d.v_cheques)}</td>
+      <td class="r" style="padding:8px;color:#e65100">${crc(d.v_credito)}</td>
       <td class="r" style="padding:8px;color:#1E4E8C;font-size:1.05em">${crc(d.v_total)}</td>
     </tr>`;
 
