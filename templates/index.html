@@ -3917,7 +3917,7 @@ async function cargarCierreCaja() {
       <td style="padding:6px" class="r">${r.doc}</td>
       <td style="padding:6px;font-size:11px">${conceptoV(r.concepto)}</td>
       <td style="padding:6px">${r.cliente || '—'}</td>
-      <td style="padding:6px;font-size:11px">${r.forma_pago || '—'}</td>
+      <td style="padding:6px;font-size:11px">${r.concepto === '02' ? '<span style="color:#e65100;font-weight:600">CXC</span>' : (r.forma_pago || '—')}</td>
       <td style="padding:6px" class="r">${r.efectivo      > 0 ? crc(r.efectivo)      : '<span style="color:#ddd">—</span>'}</td>
       <td style="padding:6px" class="r">${r.tarjetas      > 0 ? crc(r.tarjetas)      : '<span style="color:#ddd">—</span>'}</td>
       <td style="padding:6px" class="r">${r.transferencias> 0 ? crc(r.transferencias): '<span style="color:#ddd">—</span>'}</td>
