@@ -1658,6 +1658,104 @@ tr.tot-row td{font-weight:700;background:#EEF4FF;border-top:2px solid #dde3f0}
 
   </div>
 
+  <!-- ══════════ GARANTÍAS ══════════ -->
+  <div id="tab-garantias" class="panel">
+
+    <!-- Filtros -->
+    <div class="fcard">
+      <h3>Filtros — Garantías</h3>
+      <div class="fg">
+        <div class="fi">
+          <label>Estado</label>
+          <select id="gar-estado">
+            <option value="">Todos</option>
+            <option value="Nuevo">Nuevo</option>
+            <option value="Proceso">En Proceso</option>
+            <option value="Enviado">Enviado</option>
+            <option value="Resuelto">Resuelto</option>
+          </select>
+        </div>
+        <div class="fi" style="flex:1;min-width:220px">
+          <label>Buscar cliente / máquina / N° orden</label>
+          <input type="text" id="gar-busqueda" placeholder="Ej: Juan Pérez, Toyota..."
+                 style="width:100%" oninput="cargarGarantias()">
+        </div>
+        <div class="fi" style="flex-direction:row;gap:8px;align-self:flex-end">
+          <button class="btn-run" onclick="cargarGarantias()">Buscar</button>
+          <button onclick="abrirModalNuevaGarantia()"
+                  style="padding:8px 16px;font-size:13px;font-weight:600;border:1px solid #1a3a5c;border-radius:8px;background:#fff;color:#1a3a5c;cursor:pointer">
+            + Nueva garantía
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Métricas -->
+    <div class="metrics" id="gar-metrics"></div>
+
+    <!-- Tabla principal -->
+    <div class="fcard" style="padding:0;overflow:hidden">
+      <div class="tcard-head" style="padding:12px 16px">
+        <span>Casos de garantía</span>
+        <span id="gar-status" style="font-size:12px;color:#888"></span>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:30px"></th>
+              <th class="r">N° Orden</th>
+              <th>Cliente</th>
+              <th>Máquina / Marca</th>
+              <th>Serie</th>
+              <th>Ingreso</th>
+              <th>Estado</th>
+              <th style="text-align:center">Boleta</th>
+              <th style="text-align:center">F.Compra</th>
+              <th style="text-align:center">F.Venta</th>
+              <th style="text-align:center">Guía</th>
+              <th style="text-align:center">Resolución</th>
+            </tr>
+          </thead>
+          <tbody id="gar-tbody">
+            <tr><td colspan="12" class="loading">Presione Buscar para cargar</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nueva garantía -->
+  <div id="gar-modal-nueva" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;width:560px;max-width:95vw;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:16px;font-weight:700;color:#1a3a5c">🛡️ Registrar nueva garantía</span>
+        <button onclick="cerrarModalNuevaGarantia()"
+                style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+      </div>
+      <div style="margin-bottom:12px;font-size:13px;color:#555">
+        Seleccioná la boleta de taller tipo <strong>Taller-Garantía</strong> que iniciará el proceso:
+      </div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid #dde3f0;border-radius:8px" id="gar-lista-ordenes">
+        <div style="text-align:center;color:#aaa;padding:30px">Cargando órdenes...</div>
+      </div>
+      <div class="fi" style="margin-top:12px">
+        <label>Notas iniciales (opcional)</label>
+        <textarea id="gar-nueva-notas" rows="2"
+                  style="font-size:13px;padding:8px 10px;border:1px solid #dde3f0;border-radius:8px;width:100%;resize:vertical"
+                  placeholder="Observaciones al registrar..."></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+        <button onclick="cerrarModalNuevaGarantia()"
+                style="padding:8px 20px;border:1px solid #dde3f0;border-radius:8px;background:#fff;cursor:pointer">Cancelar</button>
+        <button id="gar-btn-crear" onclick="crearGarantia()"
+                style="padding:8px 20px;border:none;border-radius:8px;background:#1a3a5c;color:#fff;font-weight:700;cursor:pointer">
+          Registrar garantía
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════ PRODUCTOS VENDIDOS ══════════ -->
   <div id="tab-productos" class="panel">
     <div class="fcard">
@@ -1798,7 +1896,7 @@ const GRUPOS_NAV = {
   ventas:      { label:'💰 Ventas',     tabs:['ventas','pagos','productos','cxc','cv','fproceso'] },
   compras:     { label:'🛒 Compras',    tabs:['compras','cxp','cal-pagos'] },
   inventario:  { label:'📦 Inventario', tabs:['inv-ajustes','hist-ajustes'] },
-  taller:      { label:'🔧 Taller',     tabs:['taller','st003','ingreso-taller','agenda-taller','orden-compra'] },
+  taller:      { label:'🔧 Taller',     tabs:['taller','st003','ingreso-taller','agenda-taller','orden-compra','garantias'] },
   caja:        { label:'🏦 Caja/Banco', tabs:['cierre-caja','caja-chica','depositos'] },
   admin:       { label:'⚙ Admin',       tabs:['admin'] },
 };
@@ -1808,7 +1906,7 @@ const TAB_LABELS = {
   productos:'Productos Vendidos', cxc:'Cuentas x Cobrar', cv:'Compra-Venta',
   inventario:'Inventario', 'inv-ajustes':'Inv. Ajustes', 'hist-ajustes':'Historial Ajustes',
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
-  st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
+  st003:'Servicio ST003', 'orden-compra':'Orden Compra', garantias:'Garantías', cxp:'Cuentas x Pagar',
   'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
   'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', depositos:'Control Efectivo', admin:'Usuarios y Permisos'
 };
@@ -1868,6 +1966,7 @@ function showTab(name) {
   if (name === 'cierre-caja')    cargarCierreCaja();
   if (name === 'caja-chica')     cargarCajaChica();
   if (name === 'depositos')      cargarControlEfectivo();
+  if (name === 'garantias')      cargarGarantias();
   if (name === 'cxp')            initCxP();
   if (name === 'admin')          initAdmin();
 }
@@ -5842,14 +5941,14 @@ const MODULO_LABELS = {
   'inv-ajustes':'Inv. Ajustes', 'hist-ajustes':'Historial Ajustes',
   dashboard:'Dashboard',
   taller:'Taller', 'ingreso-taller':'Ingreso Taller', 'agenda-taller':'Agenda Taller',
-  st003:'Servicio ST003', 'orden-compra':'Orden Compra', cxp:'Cuentas x Pagar',
+  st003:'Servicio ST003', 'orden-compra':'Orden Compra', garantias:'Garantías', cxp:'Cuentas x Pagar',
   'cal-pagos':'Calendario Pagos', fproceso:'Facturas en Proceso',
   'cierre-caja':'Cierre de Caja', 'caja-chica':'Caja Chica', depositos:'Control Efectivo', admin:'Admin'
 };
 const MODULOS_ORDEN = ['dashboard','ventas','pagos','productos','cxc','cv','fproceso',
   'compras','cxp','cal-pagos',
   'inv-ajustes','hist-ajustes','taller','st003','ingreso-taller',
-  'agenda-taller','orden-compra','cierre-caja','caja-chica','depositos','admin'];
+  'agenda-taller','orden-compra','garantias','cierre-caja','caja-chica','depositos','admin'];
 
 let _admRoles = [], _admRolSelId = null;
 
@@ -6010,6 +6109,417 @@ async function crearRol() {
     </div>
   </div>
 </div>
+
+<!-- ══════════ JS GARANTÍAS ══════════ -->
+<script>
+// ── Estado local ─────────────────────────────────────────────
+let _garOrdenSeleccionada = null;
+
+// ── Badges de estado ─────────────────────────────────────────
+const GAR_ESTADO_COLOR = {
+  'Nuevo':   '#6c757d', 'Proceso': '#e67e22',
+  'Enviado': '#2980b9', 'Resuelto':'#27ae60'
+};
+function garBadge(estado) {
+  const c = GAR_ESTADO_COLOR[estado] || '#888';
+  return `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;
+          font-weight:700;background:${c}20;color:${c};border:1px solid ${c}40">${estado||'—'}</span>`;
+}
+function garPaso(ok, label) {
+  return ok
+    ? `<span title="${label}" style="font-size:16px;cursor:default">✅</span>`
+    : `<span title="${label}" style="font-size:16px;cursor:default;opacity:.35">⬜</span>`;
+}
+
+// ── Cargar lista ──────────────────────────────────────────────
+async function cargarGarantias() {
+  const estado   = document.getElementById('gar-estado').value;
+  const busqueda = document.getElementById('gar-busqueda').value;
+  document.getElementById('gar-tbody').innerHTML =
+    '<tr><td colspan="12" class="loading">Cargando...</td></tr>';
+
+  const q   = new URLSearchParams({estado, busqueda}).toString();
+  const res = await fetch('/api/garantias?' + q).then(r => r.json());
+  const data = res.datos || [];
+
+  // Métricas
+  const cNuevo    = data.filter(r=>r.estado==='Nuevo').length;
+  const cProceso  = data.filter(r=>r.estado==='Proceso').length;
+  const cEnviado  = data.filter(r=>r.estado==='Enviado').length;
+  const cResuelto = data.filter(r=>r.estado==='Resuelto').length;
+  metrics('gar-metrics', [
+    {l:'Total casos',    v:data.length,  s:'garantías registradas'},
+    {l:'🆕 Nuevos',      v:cNuevo,       s:'sin iniciar'},
+    {l:'⚙️ En Proceso',  v:cProceso,     s:'con documentos'},
+    {l:'📦 Enviados',    v:cEnviado,     s:'en tránsito'},
+    {l:'✅ Resueltos',   v:cResuelto,    s:'cerrados'},
+  ]);
+
+  if (!data.length) {
+    document.getElementById('gar-tbody').innerHTML =
+      '<tr><td colspan="12" class="no-data">Sin resultados</td></tr>';
+    return;
+  }
+
+  document.getElementById('gar-tbody').innerHTML = data.map((r, idx) => {
+    const detId = `gar-det-${r.id}`;
+    return `
+    <tr style="cursor:pointer" onclick="garToggle('${detId}',${r.id},this)">
+      <td><button class="btn-expand" id="btn-${detId}">+</button></td>
+      <td class="r" style="font-family:monospace;font-weight:700">#${r.no_orden}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.nombre_cliente||'—'}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${r.maquina||'—'} ${r.marca?'/ '+r.marca:''}</td>
+      <td style="font-family:monospace;font-size:11px;color:#777">${r.serie||'—'}</td>
+      <td style="color:#777">${r.fecha_registro||'—'}</td>
+      <td>${garBadge(r.estado)}</td>
+      <td style="text-align:center">${garPaso(true,'Boleta taller')}</td>
+      <td style="text-align:center">${garPaso(!!r.no_fact_compra,'Factura compra')}</td>
+      <td style="text-align:center">${garPaso(!!r.no_fact_venta,'Factura venta')}</td>
+      <td style="text-align:center">${garPaso(!!r.no_guia,'Guía de envío')}</td>
+      <td style="text-align:center">${garPaso(!!r.resolucion,'Resolución')}</td>
+    </tr>
+    <tr id="${detId}" class="detail-row hidden">
+      <td colspan="12" style="padding:0">
+        <div id="${detId}-body" style="padding:0"></div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('gar-status').textContent = `${data.length} caso(s)`;
+}
+
+// ── Toggle fila expandible ────────────────────────────────────
+async function garToggle(detId, garantiaId, tr) {
+  const row  = document.getElementById(detId);
+  const body = document.getElementById(detId + '-body');
+  const btn  = document.getElementById('btn-' + detId);
+  const abierto = !row.classList.contains('hidden');
+  if (abierto) {
+    row.classList.add('hidden');
+    btn.textContent = '+'; btn.classList.remove('open');
+    return;
+  }
+  row.classList.remove('hidden');
+  btn.textContent = '−'; btn.classList.add('open');
+
+  if (body.dataset.loaded) return;
+  body.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa">Cargando...</div>';
+
+  // Cargar datos garantía y bitácora
+  const [gRes, bRes] = await Promise.all([
+    fetch(`/api/garantias?estado=&busqueda=${garantiaId}`).then(r=>r.json()),
+    fetch(`/api/garantias/${garantiaId}/bitacora`).then(r=>r.json())
+  ]);
+
+  // Buscar la garantía específica
+  const garAll = await fetch(`/api/garantias`).then(r=>r.json());
+  const g = (garAll.datos||[]).find(x=>x.id===garantiaId);
+  const notas = bRes.notas || [];
+
+  if (!g) { body.innerHTML = '<div style="padding:14px;color:red">Error al cargar</div>'; return; }
+  body.innerHTML = garDetalle(g, notas);
+  body.dataset.loaded = '1';
+}
+
+// ── Render detalle expandido ──────────────────────────────────
+function garDetalle(g, notas) {
+  const id = g.id;
+  const stepStyle = `display:flex;flex-direction:column;gap:6px;padding:14px;
+    border-radius:8px;border:1px solid #e0e8f5;background:#fafbff;min-width:200px;flex:1`;
+  const labelStyle = `font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px`;
+  const inputStyle = `font-size:12px;padding:6px 8px;border:1px solid #dde3f0;border-radius:6px;width:100%`;
+
+  return `
+  <div style="padding:16px">
+
+    <!-- ── Flujo de pasos ── -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+
+      <!-- Paso: Boleta -->
+      <div style="${stepStyle}">
+        <div style="${labelStyle}">✅ Boleta Taller</div>
+        <div style="font-size:12px;color:#555">Orden <strong>#${g.no_orden}</strong></div>
+        <div style="font-size:12px;color:#777">${g.nombre_cliente||'—'}</div>
+        <div style="font-size:11px;color:#999">${g.no_trae||'—'}</div>
+      </div>
+
+      <!-- Paso: Factura Compra -->
+      <div style="${stepStyle}">
+        <div style="${labelStyle}">${g.no_fact_compra?'✅':'⬜'} Factura Compra</div>
+        <input id="gar-fc-num-${id}"   type="text"   placeholder="N° factura"  value="${g.no_fact_compra||''}"  style="${inputStyle};margin-bottom:4px">
+        <input id="gar-fc-fec-${id}"   type="date"   value="${g.fecha_fact_compra||''}" style="${inputStyle};margin-bottom:6px">
+        ${garFileWidget(id,'ARCHIVO_FACT_COMPRA','gar-fc-arch',g.archivo_fact_compra)}
+        <button onclick="garGuardarPaso(${id},'factura_compra')"
+                style="margin-top:6px;padding:5px 12px;font-size:12px;border:none;border-radius:6px;
+                       background:#1a3a5c;color:#fff;cursor:pointer;font-weight:600">Guardar</button>
+      </div>
+
+      <!-- Paso: Factura Venta -->
+      <div style="${stepStyle}">
+        <div style="${labelStyle}">${g.no_fact_venta?'✅':'⬜'} Factura Venta</div>
+        <input id="gar-fv-num-${id}"   type="text"   placeholder="N° factura"  value="${g.no_fact_venta||''}"   style="${inputStyle};margin-bottom:4px">
+        <input id="gar-fv-fec-${id}"   type="date"   value="${g.fecha_fact_venta||''}" style="${inputStyle};margin-bottom:6px">
+        ${garFileWidget(id,'ARCHIVO_FACT_VENTA','gar-fv-arch',g.archivo_fact_venta)}
+        <button onclick="garGuardarPaso(${id},'factura_venta')"
+                style="margin-top:6px;padding:5px 12px;font-size:12px;border:none;border-radius:6px;
+                       background:#1a3a5c;color:#fff;cursor:pointer;font-weight:600">Guardar</button>
+      </div>
+
+      <!-- Paso: Guía Envío -->
+      <div style="${stepStyle}">
+        <div style="${labelStyle}">${g.no_guia?'✅':'⬜'} Guía de Envío</div>
+        <input id="gar-gu-num-${id}"   type="text"   placeholder="N° guía"   value="${g.no_guia||''}"          style="${inputStyle};margin-bottom:4px">
+        <input id="gar-gu-tra-${id}"   type="text"   placeholder="Transportista" value="${g.transportista||''}" style="${inputStyle};margin-bottom:4px">
+        <input id="gar-gu-fec-${id}"   type="date"   value="${g.fecha_envio||''}" style="${inputStyle};margin-bottom:6px">
+        ${garFileWidget(id,'ARCHIVO_GUIA','gar-gu-arch',g.archivo_guia)}
+        <button onclick="garGuardarPaso(${id},'guia')"
+                style="margin-top:6px;padding:5px 12px;font-size:12px;border:none;border-radius:6px;
+                       background:#1a3a5c;color:#fff;cursor:pointer;font-weight:600">Guardar</button>
+      </div>
+
+      <!-- Paso: Resolución -->
+      <div style="${stepStyle}">
+        <div style="${labelStyle}">${g.resolucion?'✅':'⬜'} Resolución</div>
+        <textarea id="gar-res-txt-${id}" rows="3" placeholder="Descripción de la resolución..."
+                  style="${inputStyle};resize:vertical;margin-bottom:4px">${g.resolucion||''}</textarea>
+        <input id="gar-res-fec-${id}" type="date" value="${g.fecha_resolucion||''}" style="${inputStyle}">
+        <button onclick="garGuardarPaso(${id},'resolucion')"
+                style="margin-top:6px;padding:5px 12px;font-size:12px;border:none;border-radius:6px;
+                       background:#27ae60;color:#fff;cursor:pointer;font-weight:600">Marcar resuelto</button>
+      </div>
+
+    </div>
+
+    <!-- ── Bitácora ── -->
+    <div style="border-top:1px solid #e0e8f5;padding-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:700;color:#1a3a5c">📋 Bitácora de seguimiento</span>
+      </div>
+
+      <!-- Agregar nota -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:flex-end">
+        <div style="flex:1">
+          <textarea id="gar-bit-txt-${id}" rows="2" placeholder="Ej: Cliente llamó preguntando por garantía..."
+                    style="width:100%;font-size:12px;padding:8px 10px;border:1px solid #dde3f0;border-radius:8px;resize:vertical"></textarea>
+        </div>
+        <button onclick="garAgregarNota(${id})"
+                style="padding:8px 16px;font-size:12px;font-weight:600;border:none;border-radius:8px;
+                       background:#1a3a5c;color:#fff;cursor:pointer;white-space:nowrap">+ Agregar nota</button>
+      </div>
+
+      <!-- Lista de notas -->
+      <div id="gar-bit-lista-${id}">
+        ${garRenderNotas(notas, id)}
+      </div>
+    </div>
+
+  </div>`;
+}
+
+function garFileWidget(garId, campo, pfx, archivoActual) {
+  const hasFile = !!archivoActual;
+  return `
+  <div id="${pfx}-wrap-${garId}" style="font-size:11px">
+    ${hasFile
+      ? `<div style="display:flex;align-items:center;gap:6px">
+           <a href="${archivoActual}" target="_blank"
+              style="color:#1a3a5c;font-size:11px;text-decoration:none">📎 Ver archivo</a>
+           <button onclick="garEliminarArchivo(${garId},'${campo}','${pfx}')"
+                   style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px"
+                   title="Eliminar archivo">🗑</button>
+         </div>`
+      : ''}
+    <input type="file" id="${pfx}-file-${garId}"
+           accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx"
+           style="font-size:11px;width:100%;margin-top:4px"
+           onchange="garSubirArchivo(${garId},'${campo}','${pfx}',this)">
+    <div id="${pfx}-msg-${garId}" style="font-size:11px;color:#27ae60;display:none"></div>
+  </div>`;
+}
+
+function garRenderNotas(notas, garId) {
+  if (!notas.length)
+    return '<div style="color:#aaa;font-size:12px;padding:8px 0">Sin notas en la bitácora.</div>';
+  return notas.map(n => `
+    <div style="display:flex;gap:10px;padding:8px 10px;border-radius:8px;
+                border:1px solid #e8edf5;background:#fff;margin-bottom:6px;align-items:flex-start">
+      <div style="flex:1">
+        <div style="font-size:12px;color:#1a1a2e">${n.detalle}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:3px">
+          📅 ${n.fecha} &nbsp;|&nbsp; 👤 ${n.usuario||'—'}
+        </div>
+      </div>
+      <button onclick="garEliminarNota(${n.id},${garId})"
+              style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:13px;padding:2px 6px"
+              title="Eliminar nota">✕</button>
+    </div>`).join('');
+}
+
+// ── Guardar paso ──────────────────────────────────────────────
+async function garGuardarPaso(id, paso) {
+  let datos = {};
+  if (paso === 'factura_compra') {
+    datos = {
+      no_fact_compra:    document.getElementById(`gar-fc-num-${id}`).value,
+      fecha_fact_compra: document.getElementById(`gar-fc-fec-${id}`).value,
+    };
+  } else if (paso === 'factura_venta') {
+    datos = {
+      no_fact_venta:    document.getElementById(`gar-fv-num-${id}`).value,
+      fecha_fact_venta: document.getElementById(`gar-fv-fec-${id}`).value,
+    };
+  } else if (paso === 'guia') {
+    datos = {
+      no_guia:       document.getElementById(`gar-gu-num-${id}`).value,
+      transportista: document.getElementById(`gar-gu-tra-${id}`).value,
+      fecha_envio:   document.getElementById(`gar-gu-fec-${id}`).value,
+    };
+  } else if (paso === 'resolucion') {
+    datos = {
+      resolucion:        document.getElementById(`gar-res-txt-${id}`).value,
+      fecha_resolucion:  document.getElementById(`gar-res-fec-${id}`).value,
+    };
+  }
+  datos.paso = paso;
+  const res = await fetch(`/api/garantias/${id}/paso`, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(datos)
+  }).then(r=>r.json());
+  if (res.ok) {
+    // Refrescar la fila completa
+    const detId = `gar-det-${id}`;
+    document.getElementById(detId+'-body').dataset.loaded = '';
+    await garToggle(detId, id, null);
+    await garToggle(detId, id, null);
+    cargarGarantias();
+  } else {
+    alert('Error: ' + (res.error||'desconocido'));
+  }
+}
+
+// ── Subir archivo ─────────────────────────────────────────────
+async function garSubirArchivo(garId, campo, pfx, input) {
+  if (!input.files[0]) return;
+  const msgEl = document.getElementById(`${pfx}-msg-${garId}`);
+  msgEl.textContent = 'Subiendo...'; msgEl.style.display = 'block'; msgEl.style.color = '#888';
+  const fd = new FormData();
+  fd.append('campo',   campo);
+  fd.append('archivo', input.files[0]);
+  const res = await fetch(`/api/garantias/${garId}/archivo`, { method:'POST', body:fd }).then(r=>r.json());
+  if (res.ok) {
+    msgEl.textContent = '✅ Archivo guardado'; msgEl.style.color = '#27ae60';
+    // Refrescar el widget de archivo
+    const detId = `gar-det-${garId}`;
+    document.getElementById(detId+'-body').dataset.loaded = '';
+    await garToggle(detId, garId, null);
+    await garToggle(detId, garId, null);
+  } else {
+    msgEl.textContent = '❌ Error: ' + (res.error||''); msgEl.style.color = '#c0392b';
+  }
+}
+
+async function garEliminarArchivo(garId, campo, pfx) {
+  if (!confirm('¿Eliminar este archivo?')) return;
+  const res = await fetch(`/api/garantias/${garId}/archivo?campo=${campo}`, {method:'DELETE'}).then(r=>r.json());
+  if (res.ok) {
+    const detId = `gar-det-${garId}`;
+    document.getElementById(detId+'-body').dataset.loaded = '';
+    await garToggle(detId, garId, null);
+    await garToggle(detId, garId, null);
+  }
+}
+
+// ── Bitácora ──────────────────────────────────────────────────
+async function garAgregarNota(garId) {
+  const txt = document.getElementById(`gar-bit-txt-${garId}`);
+  if (!txt.value.trim()) { txt.focus(); return; }
+  const res = await fetch(`/api/garantias/${garId}/bitacora`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({detalle: txt.value.trim()})
+  }).then(r=>r.json());
+  if (res.ok) {
+    txt.value = '';
+    // Recargar notas
+    const bRes = await fetch(`/api/garantias/${garId}/bitacora`).then(r=>r.json());
+    document.getElementById(`gar-bit-lista-${garId}`).innerHTML =
+      garRenderNotas(bRes.notas||[], garId);
+  }
+}
+
+async function garEliminarNota(notaId, garId) {
+  if (!confirm('¿Eliminar esta nota de la bitácora?')) return;
+  await fetch(`/api/garantias/bitacora/${notaId}`, {method:'DELETE'});
+  const bRes = await fetch(`/api/garantias/${garId}/bitacora`).then(r=>r.json());
+  document.getElementById(`gar-bit-lista-${garId}`).innerHTML =
+    garRenderNotas(bRes.notas||[], garId);
+}
+
+// ── Modal nueva garantía ─────────────────────────────────────
+let _garNuevaOrdenSel = null;
+
+async function abrirModalNuevaGarantia() {
+  _garNuevaOrdenSel = null;
+  document.getElementById('gar-nueva-notas').value = '';
+  document.getElementById('gar-modal-nueva').style.display = 'flex';
+  document.getElementById('gar-lista-ordenes').innerHTML =
+    '<div style="text-align:center;color:#aaa;padding:20px">Cargando...</div>';
+  const res = await fetch('/api/garantias/ordenes-disponibles').then(r=>r.json());
+  const ordenes = res.datos || [];
+  if (!ordenes.length) {
+    document.getElementById('gar-lista-ordenes').innerHTML =
+      '<div style="text-align:center;color:#aaa;padding:20px">No hay órdenes Taller-Garantía pendientes de registrar.</div>';
+    return;
+  }
+  document.getElementById('gar-lista-ordenes').innerHTML = ordenes.map(o => `
+    <div id="gar-ord-item-${o.no_orden}"
+         onclick="garSeleccionarOrden(${o.no_orden})"
+         style="display:flex;justify-content:space-between;align-items:center;
+                padding:10px 14px;border-bottom:1px solid #eef0f6;cursor:pointer;
+                transition:background .1s"
+         onmouseover="this.style.background='#f0f5ff'" onmouseout="this.style.background=''"
+    >
+      <div>
+        <span style="font-weight:700;font-family:monospace;color:#1a3a5c">#${o.no_orden}</span>
+        <span style="margin-left:10px;font-size:13px">${o.nombre_cliente||'—'}</span>
+        <span style="margin-left:8px;font-size:12px;color:#777">${o.maquina||''} ${o.marca||''} ${o.modelo||''}</span>
+      </div>
+      <div style="font-size:11px;color:#aaa">${o.fecha_registro||''}</div>
+    </div>`).join('');
+}
+
+function garSeleccionarOrden(noOrden) {
+  _garNuevaOrdenSel = noOrden;
+  document.querySelectorAll('[id^="gar-ord-item-"]').forEach(el => {
+    el.style.background = el.id === `gar-ord-item-${noOrden}` ? '#ddeeff' : '';
+    el.style.border = el.id === `gar-ord-item-${noOrden}` ? '1px solid #1a3a5c' : '';
+  });
+}
+
+function cerrarModalNuevaGarantia() {
+  document.getElementById('gar-modal-nueva').style.display = 'none';
+}
+
+async function crearGarantia() {
+  if (!_garNuevaOrdenSel) { alert('Seleccioná una orden primero.'); return; }
+  const notas = document.getElementById('gar-nueva-notas').value;
+  const btn   = document.getElementById('gar-btn-crear');
+  btn.disabled = true; btn.textContent = 'Registrando...';
+  const res = await fetch('/api/garantias', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({no_orden: _garNuevaOrdenSel, notas})
+  }).then(r=>r.json());
+  btn.disabled = false; btn.textContent = 'Registrar garantía';
+  if (res.ok) {
+    cerrarModalNuevaGarantia();
+    cargarGarantias();
+  } else {
+    alert('Error: ' + (res.error||'desconocido'));
+  }
+}
+</script>
 
 <!-- ══════════ MODAL ORDEN TALLER ══════════ -->
 <div id="modal-orden" onclick="if(event.target===this)cerrarOrdenModal()"

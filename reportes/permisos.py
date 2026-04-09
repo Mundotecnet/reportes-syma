@@ -4,7 +4,7 @@ MODULOS_TODOS = [
     'dashboard',
     'ventas', 'pagos', 'compras', 'productos', 'cxc', 'fproceso',
     'inventario', 'inv-ajustes', 'hist-ajustes', 'cv',
-    'taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra',
+    'taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra', 'garantias',
     'cxp', 'cierre-caja', 'caja-chica', 'depositos', 'admin'
 ]
 
@@ -13,7 +13,7 @@ MODULOS_POR_ROL_DEFAULT = {
     'Ventas':        ['ventas', 'pagos', 'productos', 'cxc', 'cv', 'fproceso'],
     'Compras':       ['compras', 'cxp'],
     'Inventario':    ['inventario', 'inv-ajustes', 'hist-ajustes'],
-    'Taller':        ['taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra'],
+    'Taller':        ['taller', 'ingreso-taller', 'agenda-taller', 'st003', 'orden-compra', 'garantias'],
 }
 
 

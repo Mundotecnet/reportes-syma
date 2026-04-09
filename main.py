@@ -30,8 +30,13 @@ from reportes.depositos          import (init_depositos, get_depositos, crear_de
                                           actualizar_foto_deposito, eliminar_deposito,
                                           get_resumen_control_efectivo,
                                           FOTO_DIR as DEP_FOTO_DIR)
+from reportes.garantias          import (init_garantias, get_garantias, get_ordenes_sin_garantia,
+                                          crear_garantia, actualizar_paso, actualizar_archivo,
+                                          eliminar_archivo, get_bitacora, agregar_nota,
+                                          eliminar_nota, ARCHIVO_DIR as GAR_ARCHIVO_DIR)
 cc_init()        # asegura que exista el directorio static/caja_chica (tabla M_CAJA_CHICA en SQL Server)
 init_depositos() # asegura que exista el directorio static/depositos (tabla M_DEPOSITOS en SQL Server)
+init_garantias() # asegura tablas M_GARANTIAS, M_GARANTIAS_BITACORA y directorio static/garantias
 from reportes.taller             import get_taller, get_detalle_taller, get_siguiente_no_orden, buscar_clientes, get_agenda_dia, get_agenda_mes, get_ordenes_antiguas, get_servicios_st003, crear_orden, get_orden_completa, mover_orden, reordenar_dia
 from reportes.ordenes_compra     import get_siguiente_no_oc, crear_oc, get_historial_oc, get_oc, actualizar_estado_oc, eliminar_oc
 from reportes.permisos           import get_modulos_usuario, get_roles, get_modulos_rol, get_usuarios_con_rol, asignar_rol_usuario, actualizar_modulos_rol, crear_rol, MODULOS_TODOS
@@ -812,6 +817,69 @@ async def oc_pdf(oc_id: int, descargar: int = Query(0)):
         media_type="application/pdf",
         headers={"Content-Disposition": f'{disposition}; filename={oc["no_oc"]}.pdf'},
     )
+
+# ─────────────────────────────────────────
+# GARANTÍAS
+# ─────────────────────────────────────────
+
+@app.get("/api/garantias")
+async def api_get_garantias(estado: str = Query(""), busqueda: str = Query("")):
+    return {"datos": get_garantias(estado=estado, busqueda=busqueda)}
+
+@app.get("/api/garantias/ordenes-disponibles")
+async def api_ordenes_disponibles():
+    return {"datos": get_ordenes_sin_garantia()}
+
+@app.post("/api/garantias")
+async def api_crear_garantia(request: Request):
+    data    = await request.json()
+    usuario = request.session.get("usuario", "")
+    return crear_garantia(
+        no_orden=int(data["no_orden"]),
+        notas=data.get("notas", ""),
+        usuario=usuario
+    )
+
+@app.patch("/api/garantias/{garantia_id}/paso")
+async def api_actualizar_paso(garantia_id: int, request: Request):
+    data    = await request.json()
+    usuario = request.session.get("usuario", "")
+    return actualizar_paso(garantia_id, data.get("paso", ""), data, usuario)
+
+@app.post("/api/garantias/{garantia_id}/archivo")
+async def api_subir_archivo(
+        garantia_id: int,
+        campo:   str        = Form(...),
+        archivo: UploadFile = File(...),
+        request: Request    = None):
+    usuario = request.session.get("usuario", "") if request else ""
+    ext     = os.path.splitext(archivo.filename)[1].lower()
+    nombre  = f"gar_{garantia_id}_{campo}{ext}"
+    ruta    = os.path.join(GAR_ARCHIVO_DIR, nombre)
+    with open(ruta, "wb") as f:
+        f.write(await archivo.read())
+    path_rel = f"/static/garantias/{nombre}"
+    res = actualizar_archivo(garantia_id, campo, path_rel)
+    res["path"] = path_rel
+    return res
+
+@app.delete("/api/garantias/{garantia_id}/archivo")
+async def api_eliminar_archivo(garantia_id: int, campo: str = Query(...)):
+    return eliminar_archivo(garantia_id, campo)
+
+@app.get("/api/garantias/{garantia_id}/bitacora")
+async def api_get_bitacora(garantia_id: int):
+    return {"notas": get_bitacora(garantia_id)}
+
+@app.post("/api/garantias/{garantia_id}/bitacora")
+async def api_agregar_nota(garantia_id: int, request: Request):
+    data    = await request.json()
+    usuario = request.session.get("usuario", "")
+    return agregar_nota(garantia_id, data.get("detalle", ""), usuario)
+
+@app.delete("/api/garantias/bitacora/{nota_id}")
+async def api_eliminar_nota(nota_id: int):
+    return eliminar_nota(nota_id)
 
 # ─────────────────────────────────────────
 # ARRANQUE
