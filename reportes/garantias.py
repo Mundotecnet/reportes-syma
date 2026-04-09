@@ -89,7 +89,7 @@ def get_garantias(estado: str = "", busqueda: str = "") -> list:
 
 
 def get_ordenes_sin_garantia() -> list:
-    """Órdenes de tipo Taller-Garantía (TIPO_ID=2) que aún no tienen registro en M_GARANTIAS."""
+    """Órdenes Taller-Garantía (TIPO_ID=2) con ESTADO=1 (Pendiente) que aún no tienen garantía registrada."""
     filas = ejecutar_query("""
         SELECT
             o.NO_ORDEN, o.NOMBRE_CLIENTE, o.MAQUINA, o.MARCA, o.MODELO,
@@ -98,6 +98,7 @@ def get_ordenes_sin_garantia() -> list:
         FROM ORDEN_SERVICIO o
         LEFT JOIN ORDEN_SERVICIO_TIPOS t ON t.TIPO_ID = o.TIPO_ID
         WHERE o.TIPO_ID = 2
+          AND o.ESTADO  = 1
           AND o.NO_ORDEN NOT IN (SELECT NO_ORDEN FROM M_GARANTIAS)
         ORDER BY o.NO_ORDEN DESC
     """)
