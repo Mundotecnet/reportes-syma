@@ -6193,6 +6193,8 @@ async function garToggle(detId, garantiaId, tr) {
   const row  = document.getElementById(detId);
   const body = document.getElementById(detId + '-body');
   const btn  = document.getElementById('btn-' + detId);
+  if (!row) return;
+
   const abierto = !row.classList.contains('hidden');
   if (abierto) {
     row.classList.add('hidden');
@@ -6202,23 +6204,28 @@ async function garToggle(detId, garantiaId, tr) {
   row.classList.remove('hidden');
   btn.textContent = '−'; btn.classList.add('open');
 
-  if (body.dataset.loaded) return;
+  if (body.dataset.loaded === '1') return;
+  await garRecargarDetalle(detId, garantiaId);
+}
+
+async function garRecargarDetalle(detId, garantiaId) {
+  const body = document.getElementById(detId + '-body');
+  if (!body) return;
   body.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa">Cargando...</div>';
-
-  // Cargar datos garantía y bitácora
-  const [gRes, bRes] = await Promise.all([
-    fetch(`/api/garantias?estado=&busqueda=${garantiaId}`).then(r=>r.json()),
-    fetch(`/api/garantias/${garantiaId}/bitacora`).then(r=>r.json())
-  ]);
-
-  // Buscar la garantía específica
-  const garAll = await fetch(`/api/garantias`).then(r=>r.json());
-  const g = (garAll.datos||[]).find(x=>x.id===garantiaId);
-  const notas = bRes.notas || [];
-
-  if (!g) { body.innerHTML = '<div style="padding:14px;color:red">Error al cargar</div>'; return; }
-  body.innerHTML = garDetalle(g, notas);
-  body.dataset.loaded = '1';
+  body.dataset.loaded = '';
+  try {
+    const [garRes, bitRes] = await Promise.all([
+      fetch('/api/garantias').then(r => r.json()),
+      fetch('/api/garantias/' + garantiaId + '/bitacora').then(r => r.json())
+    ]);
+    const g     = (garRes.datos || []).find(x => x.id === garantiaId);
+    const notas = bitRes.notas || [];
+    if (!g) { body.innerHTML = '<div style="padding:14px;color:#c0392b">No se encontró la garantía.</div>'; return; }
+    body.innerHTML  = garDetalle(g, notas);
+    body.dataset.loaded = '1';
+  } catch(e) {
+    body.innerHTML = '<div style="padding:14px;color:#c0392b">Error al cargar: ' + e.message + '</div>';
+  }
 }
 
 // ── Render detalle expandido ──────────────────────────────────
@@ -6387,11 +6394,7 @@ async function garGuardarPaso(id, paso) {
     body: JSON.stringify(datos)
   }).then(r=>r.json());
   if (res.ok) {
-    // Refrescar la fila completa
-    const detId = `gar-det-${id}`;
-    document.getElementById(detId+'-body').dataset.loaded = '';
-    await garToggle(detId, id, null);
-    await garToggle(detId, id, null);
+    await garRecargarDetalle('gar-det-' + id, id);
     cargarGarantias();
   } else {
     alert('Error: ' + (res.error||'desconocido'));
@@ -6409,11 +6412,7 @@ async function garSubirArchivo(garId, campo, pfx, input) {
   const res = await fetch(`/api/garantias/${garId}/archivo`, { method:'POST', body:fd }).then(r=>r.json());
   if (res.ok) {
     msgEl.textContent = '✅ Archivo guardado'; msgEl.style.color = '#27ae60';
-    // Refrescar el widget de archivo
-    const detId = `gar-det-${garId}`;
-    document.getElementById(detId+'-body').dataset.loaded = '';
-    await garToggle(detId, garId, null);
-    await garToggle(detId, garId, null);
+    await garRecargarDetalle('gar-det-' + garId, garId);
   } else {
     msgEl.textContent = '❌ Error: ' + (res.error||''); msgEl.style.color = '#c0392b';
   }
@@ -6421,13 +6420,8 @@ async function garSubirArchivo(garId, campo, pfx, input) {
 
 async function garEliminarArchivo(garId, campo, pfx) {
   if (!confirm('¿Eliminar este archivo?')) return;
-  const res = await fetch(`/api/garantias/${garId}/archivo?campo=${campo}`, {method:'DELETE'}).then(r=>r.json());
-  if (res.ok) {
-    const detId = `gar-det-${garId}`;
-    document.getElementById(detId+'-body').dataset.loaded = '';
-    await garToggle(detId, garId, null);
-    await garToggle(detId, garId, null);
-  }
+  const res = await fetch('/api/garantias/' + garId + '/archivo?campo=' + campo, {method:'DELETE'}).then(r=>r.json());
+  if (res.ok) await garRecargarDetalle('gar-det-' + garId, garId);
 }
 
 // ── Bitácora ──────────────────────────────────────────────────
