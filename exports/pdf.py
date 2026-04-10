@@ -6,7 +6,21 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from config import EMPRESA_NOMBRE
+
+# ── Registrar fuentes DejaVu (soporte Unicode completo, incluye ₡) ──────────
+_FONT_DIR = "/usr/share/fonts/truetype/dejavu"
+try:
+    pdfmetrics.registerFont(TTFont("DejaVu",     f"{_FONT_DIR}/DejaVuSans.ttf"))
+    pdfmetrics.registerFont(TTFont("DejaVu-Bold", f"{_FONT_DIR}/DejaVuSans-Bold.ttf"))
+    FONT_NORMAL = "DejaVu"
+    FONT_BOLD   = "DejaVu-Bold"
+except Exception:
+    # Fallback a Helvetica si no están disponibles
+    FONT_NORMAL = "Helvetica"
+    FONT_BOLD   = "Helvetica-Bold"
 
 AZUL  = colors.HexColor("#1E4E8C")
 GRIS  = colors.HexColor("#F2F2F2")
@@ -24,11 +38,11 @@ def _doc(buf, titulo):
 def _encabezado(titulo, filtros_txt=""):
     styles = getSampleStyleSheet()
     empresa_style = ParagraphStyle("emp", fontSize=14, textColor=AZUL,
-                                   alignment=TA_CENTER, fontName="Helvetica-Bold")
+                                   alignment=TA_CENTER, fontName=FONT_BOLD)
     titulo_style  = ParagraphStyle("tit", fontSize=11,
-                                   alignment=TA_CENTER, fontName="Helvetica-Bold")
+                                   alignment=TA_CENTER, fontName=FONT_BOLD)
     sub_style     = ParagraphStyle("sub", fontSize=8, textColor=colors.grey,
-                                   alignment=TA_CENTER)
+                                   alignment=TA_CENTER, fontName=FONT_NORMAL)
     elems = [
         Paragraph(EMPRESA_NOMBRE, empresa_style),
         Spacer(1, 4),
@@ -42,11 +56,11 @@ def _tabla_style(num_cols, num_filas, fila_tot):
     cmds = [
         ("BACKGROUND",  (0, 0), (-1, 0),          AZUL),
         ("TEXTCOLOR",   (0, 0), (-1, 0),          colors.white),
-        ("FONTNAME",    (0, 0), (-1, 0),          "Helvetica-Bold"),
+        ("FONTNAME",    (0, 0), (-1, 0),          FONT_BOLD),
         ("FONTSIZE",    (0, 0), (-1, -1),         8),
         ("ROWBACKGROUNDS", (0, 1), (-1, fila_tot-1), [colors.white, GRIS]),
         ("BACKGROUND",  (0, fila_tot), (-1, fila_tot), colors.HexColor("#DDEEFF")),
-        ("FONTNAME",    (0, fila_tot), (-1, fila_tot), "Helvetica-Bold"),
+        ("FONTNAME",    (0, fila_tot), (-1, fila_tot), FONT_BOLD),
         ("GRID",        (0, 0), (-1, -1),          0.3, colors.HexColor("#CCCCCC")),
         ("VALIGN",      (0, 0), (-1, -1),          "MIDDLE"),
         ("TOPPADDING",  (0, 0), (-1, -1),          4),
@@ -283,15 +297,15 @@ def exportar_boleta_pdf(orden: dict) -> bytes:
         title=f"Orden de Servicio #{orden.get('no_orden','')}",
     )
 
-    s_emp  = ParagraphStyle("emp",  fontSize=14, textColor=AZUL, alignment=TA_CENTER, fontName="Helvetica-Bold")
-    s_tit  = ParagraphStyle("tit",  fontSize=11, alignment=TA_CENTER, fontName="Helvetica-Bold")
-    s_sec  = ParagraphStyle("sec",  fontSize=9,  textColor=colors.white, fontName="Helvetica-Bold", leftIndent=5)
-    s_lbl  = ParagraphStyle("lbl",  fontSize=7,  textColor=colors.HexColor("#666666"))
-    s_val  = ParagraphStyle("val",  fontSize=9)
-    s_nord = ParagraphStyle("nord", fontSize=18, textColor=AZUL, fontName="Helvetica-Bold", alignment=TA_CENTER)
-    s_fir  = ParagraphStyle("fir",  fontSize=8,  alignment=TA_CENTER)
-    s_flbl = ParagraphStyle("flbl", fontSize=8,  textColor=colors.grey, alignment=TA_CENTER)
-    s_foot = ParagraphStyle("foot", fontSize=7,  textColor=colors.grey, alignment=TA_CENTER)
+    s_emp  = ParagraphStyle("emp",  fontSize=14, textColor=AZUL, alignment=TA_CENTER, fontName=FONT_BOLD)
+    s_tit  = ParagraphStyle("tit",  fontSize=11, alignment=TA_CENTER, fontName=FONT_BOLD)
+    s_sec  = ParagraphStyle("sec",  fontSize=9,  textColor=colors.white, fontName=FONT_BOLD, leftIndent=5)
+    s_lbl  = ParagraphStyle("lbl",  fontSize=7,  textColor=colors.HexColor("#666666"), fontName=FONT_NORMAL)
+    s_val  = ParagraphStyle("val",  fontSize=9,  fontName=FONT_NORMAL)
+    s_nord = ParagraphStyle("nord", fontSize=18, textColor=AZUL, fontName=FONT_BOLD, alignment=TA_CENTER)
+    s_fir  = ParagraphStyle("fir",  fontSize=8,  alignment=TA_CENTER, fontName=FONT_NORMAL)
+    s_flbl = ParagraphStyle("flbl", fontSize=8,  textColor=colors.grey, alignment=TA_CENTER, fontName=FONT_NORMAL)
+    s_foot = ParagraphStyle("foot", fontSize=7,  textColor=colors.grey, alignment=TA_CENTER, fontName=FONT_NORMAL)
 
     def v(key):
         return str(orden.get(key) or "—")

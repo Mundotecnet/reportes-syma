@@ -7,7 +7,20 @@ from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
                                  Paragraph, Spacer, HRFlowable)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from config import EMPRESA_NOMBRE
+
+# ── Registrar fuentes DejaVu (soporte Unicode completo, incluye ₡) ──────────
+_FONT_DIR = "/usr/share/fonts/truetype/dejavu"
+try:
+    pdfmetrics.registerFont(TTFont("DejaVu",      f"{_FONT_DIR}/DejaVuSans.ttf"))
+    pdfmetrics.registerFont(TTFont("DejaVu-Bold", f"{_FONT_DIR}/DejaVuSans-Bold.ttf"))
+    FONT_NORMAL = "DejaVu"
+    FONT_BOLD   = "DejaVu-Bold"
+except Exception:
+    FONT_NORMAL = "Helvetica"
+    FONT_BOLD   = "Helvetica-Bold"
 
 AZUL     = colors.HexColor("#1E4E8C")
 AZUL_CLR = colors.HexColor("#EEF4FF")
@@ -34,15 +47,15 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
 
     # Estilos personalizados
     s_empresa = ParagraphStyle("emp", fontSize=14, textColor=AZUL,
-                                fontName="Helvetica-Bold", alignment=TA_CENTER)
-    s_titulo  = ParagraphStyle("tit", fontSize=12, fontName="Helvetica-Bold",
+                                fontName=FONT_BOLD, alignment=TA_CENTER)
+    s_titulo  = ParagraphStyle("tit", fontSize=12, fontName=FONT_BOLD,
                                 alignment=TA_CENTER, spaceAfter=2)
     s_sub     = ParagraphStyle("sub", fontSize=8, textColor=colors.grey,
-                                alignment=TA_CENTER, spaceAfter=6)
-    s_seccion = ParagraphStyle("sec", fontSize=9, fontName="Helvetica-Bold",
+                                fontName=FONT_NORMAL, alignment=TA_CENTER, spaceAfter=6)
+    s_seccion = ParagraphStyle("sec", fontSize=9, fontName=FONT_BOLD,
                                 textColor=AZUL, spaceBefore=10, spaceAfter=4)
-    s_normal  = ParagraphStyle("nor", fontSize=8, leading=12)
-    s_nota    = ParagraphStyle("not", fontSize=8, leading=11, leftIndent=6)
+    s_normal  = ParagraphStyle("nor", fontSize=8, leading=12, fontName=FONT_NORMAL)
+    s_nota    = ParagraphStyle("not", fontSize=8, leading=11, leftIndent=6, fontName=FONT_NORMAL)
 
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
@@ -80,8 +93,8 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
     t_eq = Table(datos_eq, colWidths=[3.5*cm, 6*cm, 3.5*cm, 5*cm])
     t_eq.setStyle(TableStyle([
         ("FONTSIZE",    (0, 0), (-1, -1), 8),
-        ("FONTNAME",    (0, 0), (0, -1),  "Helvetica-Bold"),
-        ("FONTNAME",    (2, 0), (2, -1),  "Helvetica-Bold"),
+        ("FONTNAME",    (0, 0), (0, -1),  FONT_BOLD),
+        ("FONTNAME",    (2, 0), (2, -1),  FONT_BOLD),
         ("BACKGROUND",  (0, 0), (-1, -1), GRIS),
         ("GRID",        (0, 0), (-1, -1), 0.3, BORDE),
         ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
@@ -124,7 +137,7 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
     t_pasos.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0),  AZUL),
         ("TEXTCOLOR",     (0, 0), (-1, 0),  colors.white),
-        ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+        ("FONTNAME",      (0, 0), (-1, 0),  FONT_BOLD),
         ("FONTSIZE",      (0, 0), (-1, -1), 8),
         ("ROWBACKGROUNDS",(0, 1), (-1, -1), [colors.white, GRIS]),
         ("GRID",          (0, 0), (-1, -1), 0.3, BORDE),
@@ -154,7 +167,7 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
         t_bit.setStyle(TableStyle([
             ("BACKGROUND",    (0, 0), (-1, 0),  AZUL),
             ("TEXTCOLOR",     (0, 0), (-1, 0),  colors.white),
-            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTNAME",      (0, 0), (-1, 0),  FONT_BOLD),
             ("FONTSIZE",      (0, 0), (-1, -1), 8),
             ("ROWBACKGROUNDS",(0, 1), (-1, -1), [colors.white, GRIS]),
             ("GRID",          (0, 0), (-1, -1), 0.3, BORDE),
@@ -178,7 +191,7 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
         HRFlowable(width="100%", thickness=0.5, color=BORDE),
         Paragraph(
             f"{EMPRESA_NOMBRE}  |  Informe generado el {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-            ParagraphStyle("pie", fontSize=7, textColor=colors.grey, alignment=TA_CENTER)
+            ParagraphStyle("pie", fontSize=7, textColor=colors.grey, alignment=TA_CENTER, fontName=FONT_NORMAL)
         ),
     ]
 
