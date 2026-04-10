@@ -54,13 +54,14 @@ def _encabezado(titulo, filtros_txt=""):
 
 def _tabla_style(num_cols, num_filas, fila_tot):
     cmds = [
+        ("FONTNAME",    (0, 0), (-1, -1),          FONT_NORMAL),   # todas las filas → DejaVu
         ("BACKGROUND",  (0, 0), (-1, 0),          AZUL),
         ("TEXTCOLOR",   (0, 0), (-1, 0),          colors.white),
-        ("FONTNAME",    (0, 0), (-1, 0),          FONT_BOLD),
+        ("FONTNAME",    (0, 0), (-1, 0),          FONT_BOLD),      # encabezado → bold
         ("FONTSIZE",    (0, 0), (-1, -1),         8),
         ("ROWBACKGROUNDS", (0, 1), (-1, fila_tot-1), [colors.white, GRIS]),
         ("BACKGROUND",  (0, fila_tot), (-1, fila_tot), colors.HexColor("#DDEEFF")),
-        ("FONTNAME",    (0, fila_tot), (-1, fila_tot), FONT_BOLD),
+        ("FONTNAME",    (0, fila_tot), (-1, fila_tot), FONT_BOLD),  # fila totales → bold
         ("GRID",        (0, 0), (-1, -1),          0.3, colors.HexColor("#CCCCCC")),
         ("VALIGN",      (0, 0), (-1, -1),          "MIDDLE"),
         ("TOPPADDING",  (0, 0), (-1, -1),          4),

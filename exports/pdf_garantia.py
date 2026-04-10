@@ -92,6 +92,7 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
     ]
     t_eq = Table(datos_eq, colWidths=[3.5*cm, 6*cm, 3.5*cm, 5*cm])
     t_eq.setStyle(TableStyle([
+        ("FONTNAME",    (0, 0), (-1, -1), FONT_NORMAL),
         ("FONTSIZE",    (0, 0), (-1, -1), 8),
         ("FONTNAME",    (0, 0), (0, -1),  FONT_BOLD),
         ("FONTNAME",    (2, 0), (2, -1),  FONT_BOLD),
@@ -135,6 +136,7 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
     ]
     t_pasos = Table(pasos, colWidths=[3.5*cm, 7*cm, 3*cm, 4.5*cm])
     t_pasos.setStyle(TableStyle([
+        ("FONTNAME",      (0, 0), (-1, -1), FONT_NORMAL),
         ("BACKGROUND",    (0, 0), (-1, 0),  AZUL),
         ("TEXTCOLOR",     (0, 0), (-1, 0),  colors.white),
         ("FONTNAME",      (0, 0), (-1, 0),  FONT_BOLD),
@@ -165,6 +167,7 @@ def exportar_garantia_pdf(g: dict, notas: list) -> bytes:
             ])
         t_bit = Table(bit_data, colWidths=[3.5*cm, 2.5*cm, 12*cm])
         t_bit.setStyle(TableStyle([
+            ("FONTNAME",      (0, 0), (-1, -1), FONT_NORMAL),
             ("BACKGROUND",    (0, 0), (-1, 0),  AZUL),
             ("TEXTCOLOR",     (0, 0), (-1, 0),  colors.white),
             ("FONTNAME",      (0, 0), (-1, 0),  FONT_BOLD),
