@@ -6297,6 +6297,27 @@ function garDetalle(g, notas) {
 
     </div>
 
+    <!-- ── Acciones ── -->
+    ${(g.no_fact_compra && g.no_fact_venta && g.no_guia) ? `
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <a href="/api/garantias/${id}/pdf" target="_blank"
+         style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;
+                font-weight:600;border:1px solid #1a3a5c;border-radius:8px;background:#fff;
+                color:#1a3a5c;text-decoration:none;cursor:pointer">
+        🖨 Ver / Imprimir PDF
+      </a>
+      <button onclick="abrirModalEnviarInforme(${id})"
+              style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;
+                     font-weight:600;border:none;border-radius:8px;background:#1a3a5c;
+                     color:#fff;cursor:pointer">
+        📧 Enviar por correo
+      </button>
+    </div>` : `
+    <div style="font-size:11px;color:#aaa;margin-bottom:14px;padding:8px 12px;
+                background:#fff8e1;border-radius:6px;border:1px solid #ffe082">
+      ⚠️ Complete Factura Compra, Factura Venta y Guía para habilitar el envío del informe.
+    </div>`}
+
     <!-- ── Bitácora ── -->
     <div style="border-top:1px solid #e0e8f5;padding-top:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -6513,7 +6534,105 @@ async function crearGarantia() {
     alert('Error: ' + (res.error||'desconocido'));
   }
 }
+
+// ── Modal Enviar Informe ──────────────────────────────────────
+let _garEnviarId = null;
+
+function abrirModalEnviarInforme(garantiaId) {
+  _garEnviarId = garantiaId;
+  document.getElementById('gar-email-destino').value  = '';
+  document.getElementById('gar-email-mensaje').value  = '';
+  document.getElementById('gar-email-msg').style.display = 'none';
+  document.getElementById('gar-modal-email').style.display = 'flex';
+  document.getElementById('gar-email-destino').focus();
+}
+
+function cerrarModalEmail() {
+  document.getElementById('gar-modal-email').style.display = 'none';
+}
+
+async function enviarInformeGarantia() {
+  const destino = document.getElementById('gar-email-destino').value.trim();
+  const mensaje = document.getElementById('gar-email-mensaje').value.trim();
+  const msgEl   = document.getElementById('gar-email-msg');
+  const btn     = document.getElementById('gar-btn-enviar');
+
+  if (!destino) {
+    msgEl.textContent = '⚠️ Ingresá el correo destino.';
+    msgEl.style.cssText = 'display:block;color:#e67e22;font-size:12px;margin-top:8px';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  msgEl.textContent = ''; msgEl.style.display = 'none';
+
+  const res = await fetch('/api/garantias/' + _garEnviarId + '/enviar-informe', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({destino, mensaje})
+  }).then(r => r.json());
+
+  btn.disabled = false; btn.textContent = '📧 Enviar';
+
+  if (res.ok) {
+    msgEl.textContent = '✅ Informe enviado correctamente a ' + destino;
+    msgEl.style.cssText = 'display:block;color:#27ae60;font-size:12px;margin-top:8px';
+    // Recargar detalle para ver la nota en bitácora
+    setTimeout(() => {
+      cerrarModalEmail();
+      garRecargarDetalle('gar-det-' + _garEnviarId, _garEnviarId);
+    }, 2000);
+  } else {
+    msgEl.textContent = '❌ ' + (res.error || 'Error al enviar');
+    msgEl.style.cssText = 'display:block;color:#c0392b;font-size:12px;margin-top:8px';
+  }
+}
 </script>
+
+<!-- Modal: Enviar informe por correo -->
+<div id="gar-modal-email"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;width:500px;max-width:95vw;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <span style="font-size:16px;font-weight:700;color:#1a3a5c">📧 Enviar informe de garantía</span>
+      <button onclick="cerrarModalEmail()"
+              style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+    </div>
+
+    <div class="fi" style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#555">Correo destino *</label>
+      <input type="email" id="gar-email-destino" placeholder="ejemplo@correo.com"
+             style="font-size:13px;padding:9px 12px;border:1px solid #dde3f0;border-radius:8px;width:100%"
+             onkeydown="if(event.key==='Enter') enviarInformeGarantia()">
+    </div>
+
+    <div class="fi" style="margin-bottom:8px">
+      <label style="font-size:12px;font-weight:600;color:#555">Mensaje adicional (opcional)</label>
+      <textarea id="gar-email-mensaje" rows="3" placeholder="Texto que se incluirá en el cuerpo del correo..."
+                style="font-size:13px;padding:9px 12px;border:1px solid #dde3f0;border-radius:8px;width:100%;resize:vertical"></textarea>
+    </div>
+
+    <div id="gar-email-msg"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+      <a id="gar-pdf-preview" href="#" target="_blank"
+         onclick="this.href='/api/garantias/'+_garEnviarId+'/pdf'"
+         style="font-size:12px;color:#1a3a5c;text-decoration:none">
+        🖨 Ver PDF antes de enviar
+      </a>
+      <div style="display:flex;gap:10px">
+        <button onclick="cerrarModalEmail()"
+                style="padding:8px 20px;border:1px solid #dde3f0;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">
+          Cancelar
+        </button>
+        <button id="gar-btn-enviar" onclick="enviarInformeGarantia()"
+                style="padding:8px 22px;border:none;border-radius:8px;background:#1a3a5c;color:#fff;font-weight:700;cursor:pointer;font-size:13px">
+          📧 Enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ MODAL ORDEN TALLER ══════════ -->
 <div id="modal-orden" onclick="if(event.target===this)cerrarOrdenModal()"

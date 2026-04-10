@@ -34,6 +34,7 @@ from reportes.garantias          import (init_garantias, get_garantias, get_orde
                                           crear_garantia, actualizar_paso, actualizar_archivo,
                                           eliminar_archivo, get_bitacora, agregar_nota,
                                           eliminar_nota, ARCHIVO_DIR as GAR_ARCHIVO_DIR)
+from exports.pdf_garantia        import exportar_garantia_pdf
 cc_init()        # asegura que exista el directorio static/caja_chica (tabla M_CAJA_CHICA en SQL Server)
 init_depositos() # asegura que exista el directorio static/depositos (tabla M_DEPOSITOS en SQL Server)
 init_garantias() # asegura tablas M_GARANTIAS, M_GARANTIAS_BITACORA y directorio static/garantias
@@ -880,6 +881,95 @@ async def api_agregar_nota(garantia_id: int, request: Request):
 @app.delete("/api/garantias/bitacora/{nota_id}")
 async def api_eliminar_nota(nota_id: int):
     return eliminar_nota(nota_id)
+
+@app.get("/api/garantias/{garantia_id}/pdf")
+async def api_garantia_pdf(garantia_id: int):
+    from fastapi.responses import Response as FResponse
+    garantias = get_garantias()
+    g = next((x for x in garantias if x["id"] == garantia_id), None)
+    if not g:
+        raise HTTPException(status_code=404, detail="Garantía no encontrada")
+    notas = get_bitacora(garantia_id)
+    pdf   = exportar_garantia_pdf(g, notas)
+    return FResponse(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename=garantia_{g['no_orden']}.pdf"}
+    )
+
+@app.post("/api/garantias/{garantia_id}/enviar-informe")
+async def api_enviar_informe(garantia_id: int, request: Request):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base      import MIMEBase
+    from email.mime.text      import MIMEText
+    from email                import encoders
+    from config               import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+
+    data    = await request.json()
+    destino = data.get("destino", "").strip()
+    mensaje = data.get("mensaje", "").strip()
+    usuario = request.session.get("usuario", "")
+
+    if not destino:
+        return {"ok": False, "error": "Correo destino requerido"}
+    if not SMTP_USER or not SMTP_PASSWORD:
+        return {"ok": False, "error": "SMTP no configurado en el servidor"}
+
+    # Obtener datos
+    garantias = get_garantias()
+    g = next((x for x in garantias if x["id"] == garantia_id), None)
+    if not g:
+        return {"ok": False, "error": "Garantía no encontrada"}
+    notas = get_bitacora(garantia_id)
+
+    # Generar PDF
+    pdf_bytes = exportar_garantia_pdf(g, notas)
+    nombre_pdf = f"Garantia_Orden_{g['no_orden']}.pdf"
+
+    # Construir email
+    msg = MIMEMultipart()
+    msg["From"]    = SMTP_FROM or SMTP_USER
+    msg["To"]      = destino
+    msg["Subject"] = f"Informe de Garantía — Orden #{g['no_orden']} — {g['nombre_cliente']}"
+
+    cuerpo = (
+        f"Estimado(a),\n\n"
+        f"Adjunto encontrará el informe de garantía para:\n\n"
+        f"  • Orden:    #{g['no_orden']}\n"
+        f"  • Cliente:  {g['nombre_cliente']}\n"
+        f"  • Equipo:   {g['maquina']} {g['marca']} {g['modelo']}\n"
+        f"  • Serie:    {g['serie']}\n"
+        f"  • Estado:   {g['estado']}\n"
+    )
+    if mensaje:
+        cuerpo += f"\n{mensaje}\n"
+    cuerpo += f"\n\nSaludos,\n{EMPRESA_NOMBRE}\n"
+
+    msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+
+    # Adjuntar PDF
+    part = MIMEBase("application", "octet-stream")
+    part.set_payload(pdf_bytes)
+    encoders.encode_base64(part)
+    part.add_header("Content-Disposition", f'attachment; filename="{nombre_pdf}"')
+    msg.attach(part)
+
+    # Enviar
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as srv:
+            srv.starttls()
+            srv.login(SMTP_USER, SMTP_PASSWORD)
+            srv.sendmail(msg["From"], [destino], msg.as_string())
+    except Exception as e:
+        return {"ok": False, "error": f"Error SMTP: {e}"}
+
+    # Actualizar bitácora
+    nota_txt = f"Informe enviado por correo a {destino}"
+    if mensaje:
+        nota_txt += f" — Mensaje: {mensaje}"
+    agregar_nota(garantia_id, nota_txt, usuario)
+
+    return {"ok": True}
 
 # ─────────────────────────────────────────
 # ARRANQUE
