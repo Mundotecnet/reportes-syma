@@ -68,7 +68,7 @@ def get_garantias(estado: str = "", busqueda: str = "") -> list:
         where.append("(o.NOMBRE_CLIENTE LIKE ? OR o.MAQUINA LIKE ? OR o.MARCA LIKE ? OR o.MODELO LIKE ? OR CAST(g.NO_ORDEN AS NVARCHAR) LIKE ?)")
         params.extend([b, b, b, b, b])
 
-    filas = ejecutar_query(f"""
+    sql = f"""
         SELECT
             g.ID, g.NO_ORDEN, g.ESTADO,
             g.NO_FACT_COMPRA, g.FECHA_FACT_COMPRA, g.ARCHIVO_FACT_COMPRA,
@@ -84,7 +84,8 @@ def get_garantias(estado: str = "", busqueda: str = "") -> list:
         LEFT JOIN ORDEN_SERVICIO_TIPOS t ON t.TIPO_ID = o.TIPO_ID
         WHERE {' AND '.join(where)}
         ORDER BY g.CREADO_EN DESC
-    """, params if params else None)
+    """
+    filas = ejecutar_query(sql, params) if params else ejecutar_query(sql)
     return [_row_gar(r) for r in filas]
 
 
