@@ -38,3 +38,19 @@ logs/
 
 # Archivos de sesión
 mundotec_session*
+
+# Base de datos SQLite legada (migrada a SQL Server)
+banco.db
+
+# Archivos subidos por usuarios (fotos comprobantes, garantías, caja chica)
+static/caja_chica/
+static/depositos/
+static/garantias/
+
+# Archivos temporales / debug
+query_tipos.py
+package-lock.json
+
+# Copias duplicadas accidentales (los reales están en raíz y templates/)
+reportes/index.html
+reportes/main.py

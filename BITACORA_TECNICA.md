@@ -3,7 +3,7 @@
 **Servidor:** Ubuntu 192.168.88.250:8000
 **Ruta local:** `/Users/lroot/Downloads/reportes-syma`
 **Ruta servidor:** `/home/lroot/reportes-syma`
-**Última actualización:** 2026-04-07
+**Última actualización:** 2026-04-12
 
 ---
 
@@ -19,7 +19,7 @@
 
 ## ══ ESTADO ACTUAL DEL SISTEMA ══
 
-### Versión activa: `v1.0.0`
+### Versión activa: `v1.1.0`
 ### Git: rama `main` — remoto `servidor` (ssh://lroot@192.168.88.250/home/lroot/reportes-syma)
 
 ### Módulos funcionando al 100%
@@ -40,6 +40,7 @@
 | **Servicio ST003** | `st003` | Servicios ST003 facturados directo en punto_venta |
 | **Ingreso Taller** | `ingreso-taller` | Creación de nuevas órdenes de servicio |
 | **Agenda Taller** | `agenda-taller` | Calendario mensual/semanal/diario + backlog drag&drop |
+| **Garantías** | `garantias` | Seguimiento de garantías ligadas a órdenes de taller — pasos, archivos adjuntos, bitácora de cambios, PDF e email |
 | Orden Compra | `orden-compra` | Gestión de órdenes de compra internas |
 | **Facturas en Proceso** | `fproceso` | Facturas ESTADO='P' con detalle expandible, seriales y resumen acumulado por producto |
 | **Cierre de Caja** | `cierre-caja` | Resumen diario de ventas + cobros CXC por forma de pago. Auto-carga + navegación ◀▶ días |
@@ -53,7 +54,7 @@
 💰 Ventas:     ventas → pagos → productos → cxc → cv → fproceso
 🛒 Compras:    compras → cxp → cal-pagos
 📦 Inventario: inv-ajustes → hist-ajustes
-🔧 Taller:     taller → st003 → ingreso-taller → agenda-taller → orden-compra
+🔧 Taller:     taller → st003 → ingreso-taller → agenda-taller → orden-compra → garantias
 🏦 Caja/Banco: cierre-caja → caja-chica → depositos
 ⚙ Admin:       admin
 ```
@@ -199,6 +200,8 @@ sshpass -p '87060002' ssh lroot@192.168.88.250 "sudo journalctl -u reportes.serv
 | `M_AJUSTES_DETALLE` | Líneas de cada ajuste de inventario | Ver `reportes/inventario_ajustes.py` |
 | `M_CAJA_CHICA` | Gastos diarios de caja chica | `ID INT IDENTITY PK, FECHA DATE, DETALLE NVARCHAR(255), MONTO DECIMAL(15,2), FOTO_PATH NVARCHAR(500), USUARIO NVARCHAR(100), CREADO_EN DATETIME DEFAULT GETDATE()` |
 | `M_DEPOSITOS` | Depósitos bancarios registrados | `ID INT IDENTITY PK, FECHA DATE, BANCO NVARCHAR(100), MONTO DECIMAL(15,2), NOTAS NVARCHAR(500), FOTO_PATH NVARCHAR(500), USUARIO NVARCHAR(100), CREADO_EN DATETIME DEFAULT GETDATE()` |
+| `M_GARANTIAS` | Cabecera de garantías por orden de taller | `ID INT IDENTITY PK, NO_ORDEN INT, ESTADO NVARCHAR(20), NO_FACT_COMPRA/VENTA, FECHAS, ARCHIVOS, NO_GUIA, TRANSPORTISTA, FECHA_ENVIO, RESOLUCION, NOTAS, USUARIO, CREADO_EN, ACTUALIZADO_EN` |
+| `M_GARANTIAS_BITACORA` | Historial de cambios por garantía | `ID INT IDENTITY PK, GARANTIA_ID INT FK, FECHA DATETIME, DETALLE NVARCHAR(1000), USUARIO NVARCHAR(100)` |
 
 ### ORDEN_SERVICIO — columnas importantes
 | Columna | Descripción |
@@ -241,7 +244,57 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 
 ---
 
-## BACKUPS MANUALES
+---
+
+## SISTEMA DE RESPALDO AUTOMÁTICO
+
+### Ubicación
+| Elemento | Ruta |
+|----------|------|
+| Script | `/home/lroot/scripts/backup_reportes.sh` |
+| Destino | `/home/lroot/backups/` |
+| Log | `/home/lroot/backups/backup_reportes.log` |
+
+### Archivos generados por respaldo
+| Archivo | Contenido |
+|---------|-----------|
+| `reportes_git_FECHA.bundle` | Historial git completo (todos los commits) |
+| `reportes_static_FECHA.tar.gz` | Fotos de garantías, caja chica, depósitos |
+| `reportes-syma.git/` | Bare repo local — remoto `backup` permanente |
+
+> **Nota:** La BD está en SQL Server externo (`192.168.10.15`). Su respaldo depende del servidor SQL Server (no de este script).
+
+### Cron (automático cada noche a las 2:30 AM)
+```
+30 2 * * * /home/lroot/scripts/backup_reportes.sh >> /home/lroot/backups/backup_reportes.log 2>&1
+```
+
+### Retención
+- Se conservan los últimos **14 días** de respaldos
+- Los más antiguos se eliminan automáticamente
+
+### Ejecutar respaldo manual
+```bash
+bash /home/lroot/scripts/backup_reportes.sh
+```
+
+### Restaurar código desde bare repo
+```bash
+# Opción 1: clonar desde bare repo local
+git clone /home/lroot/backups/reportes-syma.git reportes-syma-restaurado
+
+# Opción 2: restaurar desde bundle diario
+git clone /home/lroot/backups/reportes_git_FECHA.bundle reportes-syma-restaurado
+```
+
+### Ver historial de versiones
+```bash
+git --git-dir=/home/lroot/backups/reportes-syma.git log --oneline
+```
+
+---
+
+## BACKUPS MANUALES (histórico)
 
 | Fecha | Directorio |
 |-------|-----------|
@@ -347,6 +400,37 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 | 34 | Nuevo | Módulo **Caja Chica** (`caja-chica`). Registro de gastos diarios (Fletes, Aseo, Guarda) con Fecha, Detalle, Monto y foto adjunta. Foto guardada en `static/caja_chica/`. Total del día se descuenta del efectivo en cierre de caja | `reportes/caja_chica.py`, `main.py`, `permisos.py`, `index.html` |
 | 35 | Infra | **Migración SQLite → SQL Server**: Caja Chica inicialmente usaba `banco.db` (SQLite). Creada tabla `M_CAJA_CHICA` en SQL Server Syma (cuenta `sa`). `reportes/caja_chica.py` reescrito para usar `ejecutar_query`/`get_connection` de `db.py`. Eliminada dependencia de `sqlite3`. `cc_init()` ahora solo crea directorio de fotos | `reportes/caja_chica.py`, `main.py` |
 | 36 | Docs | **Convención M_ prefix**: Toda tabla nueva debe residir en SQL Server Syma con prefijo `M_`. Documentado en bitácora como regla. Inventario de todas las tablas M_ existentes | `BITACORA_TECNICA.md` |
+
+### [SESIÓN 9] — 2026-04-12 — Sistema de respaldo automático + Git versioning
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 41 | Infra | Script `/home/lroot/scripts/backup_reportes.sh` — respaldo nocturno automático | nuevo script |
+| 42 | Infra | Bare repo git `/home/lroot/backups/reportes-syma.git` — remoto `backup` permanente | git config |
+| 43 | Infra | Bundle diario `reportes_git_FECHA.bundle` — snapshot portátil del historial completo | script |
+| 44 | Infra | Static tar.gz `reportes_static_FECHA.tar.gz` — fotos garantías, caja chica, depósitos | script |
+| 45 | Infra | Cron 02:30 AM diario para ejecución automática | crontab |
+| 46 | Infra | Retención 14 días — limpieza automática de respaldos antiguos | script |
+| 47 | Fix | `.gitignore` actualizado — excluye banco.db, static/uploads, query_tipos.py, reportes/index.html duplicado | `.gitignore` |
+| 48 | Docs | Bitácora actualizada — Sesiones 8 y 9, tablas M_GARANTIAS, versión v1.1.0 | `BITACORA_TECNICA.md` |
+
+---
+
+### [SESIÓN 8] — 2026-04-09 — Módulo Garantías + PDF + Fix fuentes Unicode
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 37 | Nuevo | Tabla `M_GARANTIAS` en SQL Server — cabecera de garantía por orden de taller (facturas compra/venta, guía envío, resolución, archivos adjuntos) | SQL Server |
+| 38 | Nuevo | Tabla `M_GARANTIAS_BITACORA` en SQL Server — historial de cambios por garantía con timestamp y usuario | SQL Server |
+| 39 | Nuevo | `reportes/garantias.py` — CRUD completo: `get_garantias`, `get_garantia_detalle`, `crear_garantia`, `actualizar_garantia`, `agregar_nota_bitacora` | `reportes/garantias.py` |
+| 40 | Nuevo | Tab `garantias` en grupo 🔧 Taller. Flujo de pasos: Nuevo → Documentado → Enviado → Resuelto. Archivos adjuntos subibles (fact. compra, fact. venta, guía). Bitácora de notas por garantía | `templates/index.html`, `reportes/permisos.py` |
+| 41 | Nuevo | Endpoints: `GET /api/garantias`, `GET /api/garantias/{id}`, `POST /api/garantias`, `PUT /api/garantias/{id}`, `POST /api/garantias/{id}/nota`, `POST /api/garantias/{id}/archivo` | `main.py` |
+| 42 | Nuevo | `exports/pdf_garantia.py` — genera PDF de informe de garantía con datos del equipo, pasos completados y bitácora | `exports/pdf_garantia.py` |
+| 43 | Nuevo | Botón "📄 Informe PDF" + envío por email desde tab garantías. Auto-nota en bitácora al enviar | `templates/index.html`, `main.py` |
+| 44 | Fix | Fuentes DejaVu (`DejaVuSans.ttf`) aplicadas a **todas** las filas de tablas en PDF — el símbolo ₡ se cortaba en filas de datos con Helvetica | `exports/pdf.py`, `exports/pdf_garantia.py` |
+| 45 | Infra | `config.py` ampliado con `SMTP_HOST/PORT/USER/PASSWORD/FROM` para envío de PDFs por email | `config.py` |
+
+---
 
 ### [SESIÓN 7] Módulo Control de Efectivo / Depósitos
 
