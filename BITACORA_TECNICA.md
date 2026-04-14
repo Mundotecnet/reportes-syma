@@ -1,9 +1,9 @@
 # BITÁCORA TÉCNICA — Reportes MUNDOTEC
 **Sistema:** FastAPI + SQL Server Syma
-**Servidor:** Ubuntu 192.168.88.250:8000
-**Ruta local:** `/Users/lroot/Downloads/reportes-syma`
-**Ruta servidor:** `/home/lroot/reportes-syma`
-**Última actualización:** 2026-04-12
+**Servidor:** `mserver` — Ubuntu 22.04 — IP `192.168.88.250`
+**Ruta del proyecto:** `/home/lroot/reportes-syma`
+**Entorno de trabajo:** Claude Code corre directamente en el servidor
+**Última actualización:** 2026-04-14
 
 ---
 
@@ -11,9 +11,10 @@
 
 | Frase del usuario | Acción de Claude |
 |-------------------|-----------------|
-| `"lee la bitácora"` | `Read BITACORA_TECNICA.md` → contexto completo cargado |
-| `"cierra la sesión"` | Actualizar bitácora + `git commit` + `git push servidor main` |
-| `"realiza respaldo"` | `cp -r reportes-syma reportes-syma-backup-$(date +%Y%m%d-%H%M%S)` |
+| `"iniciamos sesión en reportes"` | Leer esta bitácora → contexto completo cargado |
+| `"iniciamos sesión en mundotec"` | Leer `/home/lroot/mundotec-web/BITACORA.md` |
+| `"cierra la sesión"` | Actualizar bitácora + `git commit` |
+| `"hacer respaldo"` / `"realiza respaldo"` | Ejecutar `bash /home/lroot/scripts/backup_reportes.sh` |
 
 ---
 
@@ -69,19 +70,19 @@
 
 ## PROTOCOLO OBLIGATORIO ANTES DE CUALQUIER CAMBIO
 
+> Claude Code corre **directamente en el servidor** (`mserver` / `192.168.88.250`).
+> No hay sincronización Mac↔servidor. Se edita y commitea en el servidor mismo.
+
 ```
-1. MODIFICAR archivos locales
+1. MODIFICAR archivos en /home/lroot/reportes-syma/
 
 2. COMMIT con mensaje descriptivo
    git add <archivos modificados>
    git commit -m "descripción del cambio"
 
-3. DEPLOY AL SERVIDOR (push + reinicio)
-   GIT_SSH_COMMAND="sshpass -p '87060002' ssh -o StrictHostKeyChecking=no" \
-     git push servidor main
-   sshpass -p '87060002' ssh -tt lroot@192.168.88.250 \
-     "echo '87060002' | sudo -S systemctl restart reportes.service && \
-      sleep 2 && systemctl is-active reportes.service"
+3. REINICIAR SERVICIO (si es necesario)
+   sudo systemctl restart reportes.service
+   sudo systemctl is-active reportes.service
 
 4. VERIFICAR respuesta "active"
 
@@ -94,8 +95,6 @@
 
 6. AL CERRAR UN BLOQUE DE MEJORAS — crear tag de versión
    git tag -a v1.X.0 -m "descripción del release"
-   GIT_SSH_COMMAND="sshpass -p '87060002' ssh -o StrictHostKeyChecking=no" \
-     git push servidor main --tags
 ```
 
 ### Rollback a versión anterior
@@ -103,12 +102,9 @@
 # Ver versiones disponibles
 git tag
 
-# Revertir localmente y en servidor
+# Revertir
 git checkout v1.0.0
-sshpass -p '87060002' ssh lroot@192.168.88.250 \
-  "cd /home/lroot/reportes-syma && git checkout v1.0.0"
-sshpass -p '87060002' ssh -tt lroot@192.168.88.250 \
-  "echo '87060002' | sudo -S systemctl restart reportes.service"
+sudo systemctl restart reportes.service
 ```
 
 ---
@@ -149,12 +145,12 @@ reportes-syma/
 ## ACCESO AL SERVIDOR
 
 ```bash
-# Push y reinicio (flujo normal)
-GIT_SSH_COMMAND="sshpass -p '87060002' ssh -o StrictHostKeyChecking=no" git push servidor main
-sshpass -p '87060002' ssh -tt lroot@192.168.88.250 "echo '87060002' | sudo -S systemctl restart reportes.service && sleep 2 && systemctl is-active reportes.service"
+# Reiniciar servicio
+sudo systemctl restart reportes.service
+sudo systemctl is-active reportes.service
 
 # Ver logs
-sshpass -p '87060002' ssh lroot@192.168.88.250 "sudo journalctl -u reportes.service -n 50"
+sudo journalctl -u reportes.service -n 50
 ```
 
 ---
@@ -246,60 +242,77 @@ Cuando se agrega un nuevo tab hay **9 lugares** que actualizar:
 
 ---
 
-## SISTEMA DE RESPALDO AUTOMÁTICO
+## SISTEMA DE RESPALDO
 
-### Ubicación
-| Elemento | Ruta |
-|----------|------|
-| Script | `/home/lroot/scripts/backup_reportes.sh` |
-| Destino | `/home/lroot/backups/` |
-| Log | `/home/lroot/backups/backup_reportes.log` |
+### Esquema de capas
 
-### Archivos generados por respaldo
-| Archivo | Contenido |
-|---------|-----------|
-| `reportes_git_FECHA.bundle` | Historial git completo (todos los commits) |
-| `reportes_static_FECHA.tar.gz` | Fotos de garantías, caja chica, depósitos |
-| `reportes-syma.git/` | Bare repo local — remoto `backup` permanente |
-
-> **Nota:** La BD está en SQL Server externo (`192.168.10.15`). Su respaldo depende del servidor SQL Server (no de este script).
-
-### Cron (automático cada noche a las 2:30 AM)
 ```
-30 2 * * * /home/lroot/scripts/backup_reportes.sh >> /home/lroot/backups/backup_reportes.log 2>&1
+/home/lroot/reportes-syma/          ← Repo de trabajo
+        │
+        ├── git push backup main
+        │         └── /home/lroot/backups/reportes-syma.git       ← Bare repo (historial permanente)
+        │
+        └── git bundle create
+                  ├── /home/lroot/backups/reportes_git_FECHA.bundle     ← Snapshot diario (14 días)
+                  └── /mnt/backup-ext/MUNDOTEC/backups-servidor/        ← Disco externo (si conectado)
 ```
 
-### Retención
-- Se conservan los últimos **14 días** de respaldos
-- Los más antiguos se eliminan automáticamente
+> **Nota:** La BD está en SQL Server externo (`192.168.10.15`). Su respaldo depende del servidor SQL Server, no de este script.
+
+### Archivos generados
+| Archivo | Contenido | Retención |
+|---------|-----------|-----------|
+| `reportes-syma.git/` | Bare repo — historial git completo | Permanente |
+| `reportes_git_FECHA.bundle` | Snapshot portátil del historial | 14 días |
+| `reportes_static_FECHA.tar.gz` | Fotos de garantías, caja chica, depósitos | 14 días |
+
+### Scripts
+| Script | Función | Cron |
+|--------|---------|------|
+| `backup_reportes.sh` | Git + Static + SQL Server (si no corrió antes) | 02:30 AM diario |
 
 ### Disco externo
 | Campo | Valor |
 |-------|-------|
 | Punto de montaje | `/mnt/backup-ext` |
-| Carpeta respaldos | `/mnt/backup-ext/MUNDOTEC/backups-servidor/` |
+| Carpeta | `/mnt/backup-ext/MUNDOTEC/backups-servidor/` |
 | UUID | `1CFE7C05FE7BD60C` (NTFS, 932 GB) |
-| fstab | `nofail` — si no está conectado el servidor arranca igual |
+| fstab | `nofail` — servidor arranca aunque no esté conectado |
 
-> Si el disco externo está montado, los scripts copian automáticamente al final. Si no está, solo guardan localmente y registran un aviso en el log.
+### Log
+`/home/lroot/backups/backup_reportes.log`
 
-### Ejecutar respaldo manual
+---
+
+## PROTOCOLO DE RESPALDO
+
+### Respaldo manual
 ```bash
 bash /home/lroot/scripts/backup_reportes.sh
 ```
 
-### Restaurar código desde bare repo
+### Verificar último respaldo
 ```bash
-# Opción 1: clonar desde bare repo local
+tail -20 /home/lroot/backups/backup_reportes.log
+```
+
+### Restaurar código
+```bash
+# Desde bare repo (historial completo)
 git clone /home/lroot/backups/reportes-syma.git reportes-syma-restaurado
 
-# Opción 2: restaurar desde bundle diario
+# Desde bundle diario (snapshot portátil)
 git clone /home/lroot/backups/reportes_git_FECHA.bundle reportes-syma-restaurado
 ```
 
-### Ver historial de versiones
+### Ver historial completo del bare repo
 ```bash
 git --git-dir=/home/lroot/backups/reportes-syma.git log --oneline
+```
+
+### Restaurar archivos estáticos (fotos)
+```bash
+tar -xzf /home/lroot/backups/reportes_static_FECHA.tar.gz -C /home/lroot/reportes-syma/
 ```
 
 ---
