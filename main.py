@@ -903,7 +903,8 @@ async def api_enviar_informe(garantia_id: int, request: Request):
     from email.mime.base      import MIMEBase
     from email.mime.text      import MIMEText
     from email                import encoders
-    from config               import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+    from config               import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, EMPRESA_NOMBRE
+    import mimetypes
 
     data    = await request.json()
     destino = data.get("destino", "").strip()
@@ -932,6 +933,8 @@ async def api_enviar_informe(garantia_id: int, request: Request):
     msg["To"]      = destino
     msg["Subject"] = f"Informe de Garantía — Orden #{g['no_orden']} — {g['nombre_cliente']}"
 
+    adjuntos_incluidos = []
+
     cuerpo = (
         f"Estimado(a),\n\n"
         f"Adjunto encontrará el informe de garantía para:\n\n"
@@ -947,12 +950,40 @@ async def api_enviar_informe(garantia_id: int, request: Request):
 
     msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
 
-    # Adjuntar PDF
-    part = MIMEBase("application", "octet-stream")
-    part.set_payload(pdf_bytes)
-    encoders.encode_base64(part)
-    part.add_header("Content-Disposition", f'attachment; filename="{nombre_pdf}"')
-    msg.attach(part)
+    # Adjuntar PDF del informe
+    part_pdf = MIMEBase("application", "octet-stream")
+    part_pdf.set_payload(pdf_bytes)
+    encoders.encode_base64(part_pdf)
+    part_pdf.add_header("Content-Disposition", f'attachment; filename="{nombre_pdf}"')
+    msg.attach(part_pdf)
+
+    # Adjuntar archivos de compra, venta y guía si existen
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    archivos_adjuntos = [
+        (g.get("archivo_fact_compra", ""), f"Factura_Compra_{g['no_orden']}"),
+        (g.get("archivo_fact_venta",  ""), f"Factura_Venta_{g['no_orden']}"),
+        (g.get("archivo_guia",        ""), f"Guia_Envio_{g['no_orden']}"),
+    ]
+    for path_rel, nombre_base in archivos_adjuntos:
+        if not path_rel:
+            continue
+        ruta_fisica = os.path.normpath(os.path.join(base_dir, path_rel.lstrip("/")))
+        if not os.path.isfile(ruta_fisica):
+            continue
+        ext = os.path.splitext(ruta_fisica)[1]
+        mime_type, _ = mimetypes.guess_type(ruta_fisica)
+        if mime_type:
+            main_type, sub_type = mime_type.split("/", 1)
+        else:
+            main_type, sub_type = "application", "octet-stream"
+        with open(ruta_fisica, "rb") as f:
+            contenido = f.read()
+        part_adj = MIMEBase(main_type, sub_type)
+        part_adj.set_payload(contenido)
+        encoders.encode_base64(part_adj)
+        part_adj.add_header("Content-Disposition", f'attachment; filename="{nombre_base}{ext}"')
+        msg.attach(part_adj)
+        adjuntos_incluidos.append(f"{nombre_base}{ext}")
 
     # Enviar
     try:
@@ -965,11 +996,13 @@ async def api_enviar_informe(garantia_id: int, request: Request):
 
     # Actualizar bitácora
     nota_txt = f"Informe enviado por correo a {destino}"
+    if adjuntos_incluidos:
+        nota_txt += f" — Adjuntos: {', '.join(adjuntos_incluidos)}"
     if mensaje:
         nota_txt += f" — Mensaje: {mensaje}"
     agregar_nota(garantia_id, nota_txt, usuario)
 
-    return {"ok": True}
+    return {"ok": True, "adjuntos": adjuntos_incluidos}
 
 # ─────────────────────────────────────────
 # ARRANQUE
