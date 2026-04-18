@@ -3,7 +3,7 @@
 **Servidor:** `mserver` — Ubuntu 22.04 — IP `192.168.88.250`
 **Ruta del proyecto:** `/home/lroot/reportes-syma`
 **Entorno de trabajo:** Claude Code corre directamente en el servidor
-**Última actualización:** 2026-04-14
+**Última actualización:** 2026-04-18
 
 ---
 
@@ -463,6 +463,15 @@ tar -xzf /home/lroot/backups/reportes_static_FECHA.tar.gz -C /home/lroot/reporte
 | 38 | Nuevo | `reportes/depositos.py`: CRUD depósitos + `get_resumen_control_efectivo(fecha_ini, fecha_fin)`. Calcula efectivo diario neto (ef_ventas + ef_cobros_CXC_efectivo − caja_chica) vs depósitos, con saldo acumulado corriente por día | `reportes/depositos.py` |
 | 39 | Nuevo | Endpoints: `GET/POST/DELETE /api/depositos` y `GET /api/control-efectivo`. POST acepta form multipart con foto | `main.py` |
 | 40 | Nuevo | Tab `depositos` (Control Efectivo) en grupo 🏦 Caja/Banco. Métricas: acumulado período, total depositado, saldo en caja (naranja/rojo según signo), total caja chica. Tabla resumen diario con saldo corriente. Formulario de depósito con Fecha/Banco/Monto/Notas/Foto. Lista de depósitos con foto y botón eliminar | `templates/index.html`, `permisos.py` |
+
+---
+
+### [SESIÓN 10] — 2026-04-18 — Fix envío de correo en módulo Garantías
+
+| # | Tipo | Descripción | Archivos |
+|---|------|-------------|----------|
+| 49 | Fix | **NameError `EMPRESA_NOMBRE`**: en `api_enviar_informe` el import de `config` no incluía `EMPRESA_NOMBRE` — causaba HTTP 500 al intentar enviar. Corregido agregando al import | `main.py` |
+| 50 | Nuevo | **Adjuntos de archivos al correo**: el correo ahora adjunta automáticamente factura de compra, factura de venta y guía de envío si existen en disco. Se omiten sin error si no hay archivo. La nota en bitácora lista los archivos adjuntados | `main.py` |
 
 ---
 *Actualizar esta bitácora al cierre de cada sesión con `"cierra la sesión"`*
