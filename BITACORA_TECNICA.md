@@ -13,7 +13,9 @@
 |-------------------|-----------------|
 | `"iniciamos sesión en reportes"` | Leer esta bitácora → contexto completo cargado |
 | `"iniciamos sesión en mundotec"` | Leer `/home/lroot/mundotec-web/BITACORA.md` |
-| `"cierra la sesión"` | Actualizar bitácora + `git commit` |
+| `"iniciamos sesión en networking"` | Leer `/home/lroot/mundotec-networking/BITACORA.md` |
+| `"sistema"` | Leer `/home/lroot/SISTEMA.md` — vista global de todos los proyectos |
+| `"cierra la sesión"` | Actualizar bitácora + `git commit` + push |
 | `"hacer respaldo"` / `"realiza respaldo"` | Ejecutar `bash /home/lroot/scripts/backup_reportes.sh` |
 | `"lamb"` | Ejecutar `bash /home/lroot/scripts/generar_documentos.sh` — regenera ambos PDFs y los copia al disco externo |
 
